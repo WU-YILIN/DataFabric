@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .glass {
+    @apply backdrop-blur-xl bg-white/70 border border-white/20 shadow-sm;
+  }
+
+  .glass-dark {
+    @apply backdrop-blur-xl bg-black/70 border border-white/10 shadow-sm;
+  }
+
+  .ios-input {
+    @apply w-full px-4 py-3 bg-gray-100 rounded-xl border-none outline-none focus:ring-2 focus:ring-ios-blue/50 transition-all;
+  }
+
+  .ios-btn {
+    @apply px-4 py-2 rounded-xl font-semibold transition-all active:scale-95;
+  }
+
+  .ios-btn-primary {
+    @apply ios-btn bg-ios-blue text-white hover:bg-ios-blue/90;
+  }
+}
+
+body {
+  @apply bg-ios-bg text-gray-900 antialiased selection:bg-ios-blue/30;
+}
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  background-color: #f9fafb;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
