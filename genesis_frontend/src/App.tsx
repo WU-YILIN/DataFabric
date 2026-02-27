@@ -58,32 +58,32 @@ import { useLanguage } from './i18n/language'
 type SidebarEntry = { to: string; icon: any; label: string }
 
 const primaryFlow: SidebarEntry[] = [
-  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/events', icon: Database, label: 'Events' },
-  { to: '/governance', icon: ShieldCheck, label: 'Governance' },
-  { to: '/pipelines', icon: Workflow, label: 'Pipelines' },
-  { to: '/data-quality', icon: FlaskConical, label: 'Data Quality' },
-  { to: '/scheduler', icon: CalendarClock, label: 'Scheduler' },
-  { to: '/monitoring', icon: Activity, label: 'Monitoring' },
-  { to: '/cost', icon: DollarSign, label: 'Cost' },
+  { to: '/', icon: LayoutDashboard, label: '总览 Dashboard' },
+  { to: '/events', icon: Database, label: '事件 Events' },
+  { to: '/governance', icon: ShieldCheck, label: '治理 Governance' },
+  { to: '/pipelines', icon: Workflow, label: '管道 Pipelines' },
+  { to: '/data-quality', icon: FlaskConical, label: '质量 Data Quality' },
+  { to: '/scheduler', icon: CalendarClock, label: '调度 Scheduler' },
+  { to: '/monitoring', icon: Activity, label: '监控 Monitoring' },
+  { to: '/cost', icon: DollarSign, label: '成本 Cost' },
 ]
 
 const advancedFlow: SidebarEntry[] = [
-  { to: '/catalog', icon: BookOpen, label: 'Catalog' },
-  { to: '/explore', icon: SearchCode, label: 'Explore' },
-  { to: '/infrastructure', icon: Server, label: 'Infrastructure' },
-  { to: '/integration-hub', icon: Cable, label: 'Integration Hub' },
-  { to: '/access', icon: KeyRound, label: 'Access' },
-  { to: '/incidents', icon: AlertTriangle, label: 'Incidents' },
-  { to: '/collaboration', icon: Users2, label: 'Collaboration' },
-  { to: '/knowledge', icon: FileText, label: 'Knowledge' },
-  { to: '/logs', icon: History, label: 'Audit Logs' },
-  { to: '/policy-center', icon: Scale, label: 'Policy Center' },
-  { to: '/release-center', icon: Rocket, label: 'Release Center' },
-  { to: '/reports', icon: BarChart3, label: 'Reports' },
-  { to: '/marketplace', icon: Boxes, label: 'Marketplace' },
-  { to: '/ingestion', icon: Wifi, label: 'Ingestion SDK' },
-  { to: '/sandbox', icon: Beaker, label: 'Sandbox' },
+  { to: '/catalog', icon: BookOpen, label: '目录 Catalog' },
+  { to: '/explore', icon: SearchCode, label: '探索 Explore' },
+  { to: '/infrastructure', icon: Server, label: '基础设施 Infrastructure' },
+  { to: '/integration-hub', icon: Cable, label: '集成中心 Integration Hub' },
+  { to: '/access', icon: KeyRound, label: '权限 Access' },
+  { to: '/incidents', icon: AlertTriangle, label: '事件响应 Incidents' },
+  { to: '/collaboration', icon: Users2, label: '协作 Collaboration' },
+  { to: '/knowledge', icon: FileText, label: '知识库 Knowledge' },
+  { to: '/logs', icon: History, label: '审计日志 Audit Logs' },
+  { to: '/policy-center', icon: Scale, label: '策略中心 Policy Center' },
+  { to: '/release-center', icon: Rocket, label: '发布中心 Release Center' },
+  { to: '/reports', icon: BarChart3, label: '报表 Reports' },
+  { to: '/marketplace', icon: Boxes, label: '市场 Marketplace' },
+  { to: '/ingestion', icon: Wifi, label: '接入 SDK Ingestion SDK' },
+  { to: '/sandbox', icon: Beaker, label: '沙箱 Sandbox' },
 ]
 
 const SidebarItem = ({ to, icon: Icon, label }: SidebarEntry) => {
@@ -153,7 +153,7 @@ function App() {
         <div className="mb-4 flex items-center justify-between rounded-3xl border border-white/70 bg-white/70 px-6 py-4 backdrop-blur-xl shadow-sm">
           <div>
             <div className="text-xs uppercase tracking-[0.16em] text-slate-500">DataFabric</div>
-            <div className="text-2xl font-semibold tracking-tight">Build trusted data operations.</div>
+            <div className="text-2xl font-semibold tracking-tight">构建可信数据运营 · Build trusted data operations.</div>
           </div>
           <div className="text-right">
             <div className="text-sm font-semibold">{user?.name}</div>
@@ -201,14 +201,14 @@ function App() {
               </select>
             </div>
 
-            <div className="mb-2 px-1 text-[11px] uppercase tracking-wider text-slate-500">Core Flow</div>
+            <div className="mb-2 px-1 text-[11px] uppercase tracking-wider text-slate-500">核心流程 Core Flow</div>
             <div className="space-y-1">
               {primaryFlow.map((item) => (
                 <SidebarItem key={item.to} {...item} />
               ))}
             </div>
 
-            <div className="mb-2 mt-5 px-1 text-[11px] uppercase tracking-wider text-slate-500">Advanced</div>
+            <div className="mb-2 mt-5 px-1 text-[11px] uppercase tracking-wider text-slate-500">高级模块 Advanced</div>
             <div className="space-y-1">
               {advancedFlow.map((item) => (
                 <SidebarItem key={item.to} {...item} />
