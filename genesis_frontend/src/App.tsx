@@ -24,7 +24,6 @@ import {
   Users2,
   Wifi,
   Workflow,
-  MoreHorizontal,
 } from 'lucide-react'
 
 import { useSession } from './auth/session'
@@ -205,18 +204,23 @@ function App() {
                 EN
               </button>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-right">
-              <div className="text-sm font-semibold">{user?.name}</div>
-              <div className="text-xs text-slate-500">{user?.email}</div>
-            </div>
             <details className="relative">
-              <summary className="list-none cursor-pointer rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50">
-                <MoreHorizontal size={14} />
+              <summary className="list-none cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 hover:bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700">
+                    {(user?.name?.slice(0, 1) ?? 'U').toUpperCase()}
+                  </div>
+                  <div className="text-left">
+                    <div className="text-sm font-semibold leading-tight">@{user?.name ?? 'user'}</div>
+                    <div className="text-[11px] text-slate-500">{user?.email}</div>
+                  </div>
+                </div>
               </summary>
-              <div className="absolute right-0 z-20 mt-2 w-44 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
-                <Link to="/settings" className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">{L('个人设置', 'Personal Settings')}</Link>
-                <Link to="/access" className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">{L('个人权限', 'My Access')}</Link>
-                <button onClick={logout} className="w-full rounded-lg px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50">{L('退出登录', 'Log out')}</button>
+              <div className="absolute right-0 z-20 mt-2 w-52 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+                <Link to="/" className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">{L('仪表盘', 'Dashboard')}</Link>
+                <Link to="/settings" className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">{L('设置', 'Settings')}</Link>
+                <div className="my-1 h-px bg-slate-200" />
+                <button onClick={logout} className="w-full rounded-lg px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50">{L('退出登录', 'Sign out')}</button>
               </div>
             </details>
           </div>
