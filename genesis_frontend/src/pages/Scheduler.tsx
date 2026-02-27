@@ -26,6 +26,7 @@ import {
   type SchedulerRun,
   type SchedulerRunDetailResponse,
 } from '../services/api'
+import { useLanguage } from '../i18n/language'
 
 type NodeForm = {
   node_key: string
@@ -113,6 +114,8 @@ const defaultFormState: DagFormState = {
 
 const Scheduler = () => {
   const navigate = useNavigate()
+  const { locale } = useLanguage()
+  const isZh = locale === 'zh-CN'
   const [dags, setDags] = useState<SchedulerDagSummary[]>([])
   const [assets, setAssets] = useState<SchedulerOptionAsset[]>([])
   const [taskTypes, setTaskTypes] = useState<string[]>([])
@@ -482,6 +485,24 @@ const Scheduler = () => {
 
   return (
     <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
+      <section className="mb-4 rounded-2xl border border-slate-200 bg-white/80 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">{isZh ? '下一步建议' : 'Recommended Next Step'}</p>
+            <p className="text-xs text-slate-600">
+              {isZh ? '调度稳定后，前往监控页观察告警并在成本页检查资源效率。' : 'After scheduler stabilizes, review alerts in monitoring and efficiency in cost analytics.'}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => navigate('/monitoring')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? '去监控' : 'Go Monitoring'}
+            </button>
+            <button onClick={() => navigate('/cost')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? '去成本' : 'Go Cost'}
+            </button>
+          </div>
+        </div>
+      </section>
       <div className="flex justify-between items-center mb-6 gap-3">
         <header>
           <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Scheduler</h2>

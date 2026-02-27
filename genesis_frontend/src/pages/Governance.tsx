@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, CheckCircle, HelpCircle, Loader2, ShieldCheck, Sparkles } from 'lucide-react'
 import { clsx } from 'clsx'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 
 import { GenesisApi, type GovernanceResult } from '../services/api'
 import { useLanguage } from '../i18n/language'
@@ -15,6 +15,7 @@ type GovernanceFormState = {
 const Governance = () => {
   const { locale } = useLanguage()
   const isZh = locale === 'zh-CN'
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const eventId = useMemo(() => {
     const raw = searchParams.get('event_id')
@@ -141,6 +142,24 @@ const Governance = () => {
 
   return (
     <div className="max-w-6xl mx-auto animate-in fade-in zoom-in-95 duration-500">
+      <section className="mb-4 rounded-2xl border border-slate-200 bg-white/80 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">{isZh ? '下一步建议' : 'Recommended Next Step'}</p>
+            <p className="text-xs text-slate-600">
+              {isZh ? '治理通过后，立即进入管道开通并绑定数据质量规则。' : 'After governance pass, provision pipeline and bind data quality rules.'}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => navigate('/pipelines')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? '去管道' : 'Go Pipelines'}
+            </button>
+            <button onClick={() => navigate('/data-quality')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? '去数据质量' : 'Go Data Quality'}
+            </button>
+          </div>
+        </div>
+      </section>
       <header className="mb-6">
         <h2 className="text-3xl font-bold text-gray-900 tracking-tight">{isZh ? '治理工作台' : 'Governance Workbench'}</h2>
         <p className="text-gray-500 text-base">
