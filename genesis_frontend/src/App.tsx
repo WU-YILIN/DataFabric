@@ -151,7 +151,7 @@ function App() {
   return (
     <div className="min-h-screen w-full bg-[#f5f5f7] text-slate-900">
       <div className="mx-auto max-w-[1560px] px-4 py-4 md:px-6 md:py-6">
-        <div className="mb-4 flex items-center justify-between rounded-3xl border border-white/70 bg-white/70 px-6 py-4 backdrop-blur-xl shadow-sm">
+        <div className="relative z-30 mb-4 flex items-center justify-between rounded-3xl border border-white/70 bg-white/70 px-6 py-4 backdrop-blur-xl shadow-sm">
           <div>
             <div className="text-xs uppercase tracking-[0.16em] text-slate-500">DataFabric</div>
             <div className="text-2xl font-semibold tracking-tight">{L('构建可信数据运营', 'Build trusted data operations.')}</div>
@@ -204,7 +204,7 @@ function App() {
                 EN
               </button>
             </div>
-            <details className="relative">
+            <details className="relative z-50">
               <summary className="list-none cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 hover:bg-slate-50">
                 <div className="flex items-center gap-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700">
@@ -216,7 +216,7 @@ function App() {
                   </div>
                 </div>
               </summary>
-              <div className="absolute right-0 z-20 mt-2 w-52 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+              <div className="absolute right-0 top-full z-50 mt-2 w-52 rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
                 <Link to="/" className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">{L('仪表盘', 'Dashboard')}</Link>
                 <Link to="/settings" className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">{L('设置', 'Settings')}</Link>
                 <div className="my-1 h-px bg-slate-200" />
