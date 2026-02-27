@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { clsx } from 'clsx'
 import { Cable, CheckCircle2, Plug, RefreshCw, Send, ShieldAlert, TestTubeDiagonal } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 import {
   GenesisApi,
@@ -9,6 +10,7 @@ import {
   type IntegrationHubListResponse,
   type IntegrationHubOverviewResponse,
 } from '../services/api'
+import { useLanguage } from '../i18n/language'
 
 type Filters = {
   q: string
@@ -19,6 +21,9 @@ type Filters = {
 }
 
 const IntegrationHub = () => {
+  const navigate = useNavigate()
+  const { locale } = useLanguage()
+  const isZh = locale === 'zh-CN'
   const [overview, setOverview] = useState<IntegrationHubOverviewResponse | null>(null)
   const [listResp, setListResp] = useState<IntegrationHubListResponse | null>(null)
   const [detail, setDetail] = useState<IntegrationHubDetailResponse | null>(null)
@@ -156,7 +161,7 @@ const IntegrationHub = () => {
     if (!selectedType) return
     const config = parseJsonObject(form.configJson)
     if (!config) {
-      setError('Config JSON ±ØĞëÊÇ¶ÔÏó')
+      setError('Config JSON ï¿½ï¿½ï¿½ï¿½ï¿½Ç¶ï¿½ï¿½ï¿½')
       return
     }
 
@@ -180,7 +185,7 @@ const IntegrationHub = () => {
     if (!selectedType) return
     const config = parseJsonObject(form.configJson)
     if (!config) {
-      setError('Config JSON ±ØĞëÊÇ¶ÔÏó')
+      setError('Config JSON ï¿½ï¿½ï¿½ï¿½ï¿½Ç¶ï¿½ï¿½ï¿½')
       return
     }
 
@@ -204,7 +209,7 @@ const IntegrationHub = () => {
     if (!selectedType) return
     const payload = parseJsonObject(invokeForm.payloadJson)
     if (!payload) {
-      setError('Invoke payload JSON ±ØĞëÊÇ¶ÔÏó')
+      setError('Invoke payload JSON ï¿½ï¿½ï¿½ï¿½ï¿½Ç¶ï¿½ï¿½ï¿½')
       return
     }
 
@@ -230,6 +235,24 @@ const IntegrationHub = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
+      <section className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">{isZh ? 'ä¸‹ä¸€æ­¥å»ºè®®' : 'Recommended Next Step'}</p>
+            <p className="text-xs text-slate-600">
+              {isZh ? 'é›†æˆè¿æ¥æµ‹è¯•é€šè¿‡åï¼Œå»ºè®®åˆ°ç›‘æ§é¡µç¡®è®¤å‘Šè­¦é€šçŸ¥é“¾è·¯ã€‚' : 'After integration test passes, verify alert notification flow in Monitoring.'}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => navigate('/monitoring')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? 'å»ç›‘æ§' : 'Go Monitoring'}
+            </button>
+            <button onClick={() => navigate('/logs')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? 'çœ‹å®¡è®¡æ—¥å¿—' : 'View Audit Logs'}
+            </button>
+          </div>
+        </div>
+      </section>
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Integration Hub</h2>

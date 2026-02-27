@@ -4,6 +4,7 @@ import { ChevronRight, Filter, Plus, Search, X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { useNavigate } from 'react-router-dom'
 import { GenesisApi, type DataAsset, type DataAssetDetailResponse } from '../services/api'
+import { useLanguage } from '../i18n/language'
 
 type DataAssetFormState = {
   name: string
@@ -39,6 +40,8 @@ const defaultFormState: DataAssetFormState = {
 
 const DataCatalog = () => {
   const navigate = useNavigate()
+  const { locale } = useLanguage()
+  const isZh = locale === 'zh-CN'
   const [assets, setAssets] = useState<DataAsset[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -222,6 +225,24 @@ const DataCatalog = () => {
 
   return (
     <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
+      <section className="mb-4 rounded-2xl border border-slate-200 bg-white/80 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">{isZh ? '下一步建议' : 'Recommended Next Step'}</p>
+            <p className="text-xs text-slate-600">
+              {isZh ? '资产登记完成后，建议进入数据质量页面为关键资产配置规则。' : 'After cataloging assets, configure data quality rules for key assets.'}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => navigate('/data-quality')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? '去数据质量' : 'Go Data Quality'}
+            </button>
+            <button onClick={() => navigate('/governance')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? '去治理' : 'Go Governance'}
+            </button>
+          </div>
+        </div>
+      </section>
       <div className="flex justify-between items-center mb-6">
         <header>
           <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Data Catalog</h2>
