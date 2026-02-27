@@ -7,6 +7,7 @@ import {
   Beaker,
   BookOpen,
   Boxes,
+  Building2,
   CalendarClock,
   Cable,
   Database,
@@ -52,6 +53,7 @@ import ReleaseChangeManagement from './pages/ReleaseChangeManagement'
 import CustomReportsDashboardBuilder from './pages/CustomReportsDashboardBuilder'
 import DataProductMarketplace from './pages/DataProductMarketplace'
 import IncidentResponseCenter from './pages/IncidentResponseCenter'
+import TenantAdmin from './pages/TenantAdmin'
 import { useLanguage } from './i18n/language'
 
 type SidebarEntry = { to: string; icon: any; zh: string; en: string }
@@ -81,6 +83,7 @@ const advancedFlow: SidebarEntry[] = [
   { to: '/release-center', icon: Rocket, zh: '发布中心', en: 'Release Center' },
   { to: '/reports', icon: BarChart3, zh: '报表', en: 'Reports' },
   { to: '/marketplace', icon: Boxes, zh: '市场', en: 'Marketplace' },
+  { to: '/tenant-admin', icon: Building2, zh: '租户管理', en: 'Tenant Admin' },
   { to: '/ingestion', icon: Wifi, zh: '接入 SDK', en: 'Ingestion SDK' },
   { to: '/sandbox', icon: Beaker, zh: '沙箱', en: 'Sandbox' },
 ]
@@ -252,6 +255,7 @@ function App() {
               <Route path="/release-center" element={<ReleaseChangeManagement />} />
               <Route path="/reports" element={<CustomReportsDashboardBuilder />} />
               <Route path="/marketplace" element={<DataProductMarketplace />} />
+              <Route path="/tenant-admin" element={<TenantAdmin />} />
               <Route path="/ingestion" element={<IngestionSdkCenter />} />
               <Route path="/events" element={<Events />} />
               <Route path="/catalog" element={<DataCatalog />} />
