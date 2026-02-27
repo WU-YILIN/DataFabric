@@ -158,6 +158,39 @@ function App() {
             <div className="text-2xl font-semibold tracking-tight">{L('构建可信数据运营', 'Build trusted data operations.')}</div>
           </div>
           <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-2 py-1.5 text-xs">
+              <span className="text-slate-500">{L('租户', 'Tenant')}</span>
+              <select
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
+                value={activeTenantId ?? ''}
+                disabled={isSwitchingContext}
+                onChange={(e) => {
+                  void switchTenant(Number(e.target.value))
+                }}
+              >
+                {tenants.map((tenant) => (
+                  <option key={tenant.id} value={tenant.id}>
+                    {tenant.name}
+                  </option>
+                ))}
+              </select>
+              <span className="text-slate-300">|</span>
+              <span className="text-slate-500">{L('项目', 'Project')}</span>
+              <select
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs"
+                value={activeProjectId}
+                disabled={isSwitchingContext}
+                onChange={(e) => {
+                  void switchProject(Number(e.target.value))
+                }}
+              >
+                {activeTenant.projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div className="rounded-xl border border-slate-200 bg-white p-1 text-xs">
               <button
                 className={clsx('rounded-lg px-2 py-1', locale === 'zh-CN' ? 'bg-black text-white' : 'text-slate-600')}
@@ -181,44 +214,6 @@ function App() {
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
           <aside className="rounded-3xl border border-white/70 bg-white/70 p-4 backdrop-blur-xl shadow-sm lg:sticky lg:top-6 lg:h-[calc(100vh-96px)] lg:overflow-auto">
-            <div className="mb-4 space-y-2">
-              <label className="block text-[11px] uppercase tracking-wider text-slate-500">
-                {t('app.tenant')}
-              </label>
-              <select
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                value={activeTenantId ?? ''}
-                disabled={isSwitchingContext}
-                onChange={(e) => {
-                  void switchTenant(Number(e.target.value))
-                }}
-              >
-                {tenants.map((tenant) => (
-                  <option key={tenant.id} value={tenant.id}>
-                    {tenant.name}
-                  </option>
-                ))}
-              </select>
-
-              <label className="block pt-2 text-[11px] uppercase tracking-wider text-slate-500">
-                {t('app.project')}
-              </label>
-              <select
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
-                value={activeProjectId}
-                disabled={isSwitchingContext}
-                onChange={(e) => {
-                  void switchProject(Number(e.target.value))
-                }}
-              >
-                {activeTenant.projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name} ({project.role})
-                  </option>
-                ))}
-              </select>
-            </div>
-
             <div className="mb-2 px-1 text-[11px] uppercase tracking-wider text-slate-500">{L('核心流程', 'Core Flow')}</div>
             <div className="space-y-1">
               {primaryFlow.map((item) => (
