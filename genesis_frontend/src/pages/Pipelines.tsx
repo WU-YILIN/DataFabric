@@ -8,6 +8,7 @@ import {
   type PipelineHistoryItem,
   type PipelineProvisionEventOption,
 } from '../services/api'
+import { useLanguage } from '../i18n/language'
 
 const statusClass: Record<string, string> = {
   RUNNING: 'bg-emerald-100 text-emerald-700',
@@ -30,6 +31,8 @@ const statusOptions = [
 
 const Pipelines = () => {
   const navigate = useNavigate()
+  const { locale } = useLanguage()
+  const isZh = locale === 'zh-CN'
   const [pipelines, setPipelines] = useState<Pipeline[]>([])
   const [approvedEvents, setApprovedEvents] = useState<PipelineProvisionEventOption[]>([])
   const [history, setHistory] = useState<PipelineHistoryItem[]>([])
@@ -85,7 +88,7 @@ const Pipelines = () => {
         setHistory([])
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load pipelines')
+      setError(e?.response?.data?.message ?? (isZh ? '加载管道失败' : 'Failed to load pipelines'))
     } finally {
       if (!silent) {
         setLoading(false)
@@ -212,7 +215,7 @@ const Pipelines = () => {
   return (
     <div className="max-w-[1440px] mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
       <header className="mb-6">
-        <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Pipelines Console</h2>
+        <h2 className="text-3xl font-bold text-gray-900 tracking-tight">{isZh ? '管道控制台' : 'Pipelines Console'}</h2>
         <p className="text-gray-500 text-base">
           Provision event pipelines, inspect topology, track status timeline, and operate lifecycle.
         </p>

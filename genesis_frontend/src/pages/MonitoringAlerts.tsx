@@ -10,6 +10,7 @@ import {
   type MonitoringAlertListResponse,
   type MonitoringOverviewResponse,
 } from '../services/api'
+import { useLanguage } from '../i18n/language'
 
 const severityClass: Record<string, string> = {
   CRITICAL: 'bg-rose-100 text-rose-700',
@@ -26,6 +27,8 @@ const moduleStatusClass: Record<string, string> = {
 
 const MonitoringAlerts = () => {
   const navigate = useNavigate()
+  const { locale } = useLanguage()
+  const isZh = locale === 'zh-CN'
   const [overview, setOverview] = useState<MonitoringOverviewResponse | null>(null)
   const [alertsResp, setAlertsResp] = useState<MonitoringAlertListResponse | null>(null)
   const [selectedAlertId, setSelectedAlertId] = useState<number | null>(null)
@@ -60,7 +63,7 @@ const MonitoringAlerts = () => {
       })
       setOverview(data)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load monitoring overview')
+      setError(e?.response?.data?.message ?? (isZh ? '加载监控总览失败' : 'Failed to load monitoring overview'))
     } finally {
       setLoadingOverview(false)
     }
@@ -86,7 +89,7 @@ const MonitoringAlerts = () => {
         setSelectedAlertId(data.items[0]?.id ?? null)
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load alerts')
+      setError(e?.response?.data?.message ?? (isZh ? '加载告警列表失败' : 'Failed to load alerts'))
     } finally {
       setLoadingAlerts(false)
     }
@@ -100,7 +103,7 @@ const MonitoringAlerts = () => {
       setDetail(data)
       setNoteText(data.alert.last_note ?? '')
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load alert detail')
+      setError(e?.response?.data?.message ?? (isZh ? '加载告警详情失败' : 'Failed to load alert detail'))
       setDetail(null)
     } finally {
       setLoadingDetail(false)
@@ -165,7 +168,7 @@ const MonitoringAlerts = () => {
     <div className="max-w-7xl mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Monitoring & Alerts</h2>
+          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{isZh ? '监控与告警' : 'Monitoring & Alerts'}</h2>
           <p className="text-slate-500 text-base">
             System and business metrics with full alert triage workflow.
           </p>

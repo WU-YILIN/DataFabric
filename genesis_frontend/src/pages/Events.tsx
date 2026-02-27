@@ -4,6 +4,7 @@ import { clsx } from 'clsx'
 import { useNavigate } from 'react-router-dom'
 
 import { GenesisApi, type EventDetailResponse, type TrackingEvent } from '../services/api'
+import { useLanguage } from '../i18n/language'
 
 type EventFormState = {
   code: string
@@ -29,6 +30,8 @@ const defaultFormState: EventFormState = {
 
 const Events = () => {
   const navigate = useNavigate()
+  const { locale } = useLanguage()
+  const isZh = locale === 'zh-CN'
   const [events, setEvents] = useState<TrackingEvent[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -73,7 +76,7 @@ const Events = () => {
       })
       setEvents(rows)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load event catalog')
+      setError(e?.response?.data?.message ?? (isZh ? '加载事件目录失败' : 'Failed to load event catalog'))
     } finally {
       setLoading(false)
     }
@@ -206,8 +209,8 @@ const Events = () => {
     <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
       <div className="flex justify-between items-center mb-6">
         <header>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Event Catalog</h2>
-          <p className="text-slate-500 text-base">Tenant/project scoped event definitions and governance history.</p>
+          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{isZh ? '事件目录' : 'Event Catalog'}</h2>
+          <p className="text-slate-500 text-base">{isZh ? '按租户/项目展示事件定义与治理历史。' : 'Tenant/project scoped event definitions and governance history.'}</p>
         </header>
         <button
           onClick={openCreateModal}

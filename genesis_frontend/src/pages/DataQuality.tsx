@@ -10,6 +10,7 @@ import {
   type DataQualityRuleOptionAsset,
   type DataQualityRuleOptionEvent,
 } from '../services/api'
+import { useLanguage } from '../i18n/language'
 
 type RuleFormState = {
   name: string
@@ -41,6 +42,8 @@ const defaultRuleForm: RuleFormState = {
 
 const DataQuality = () => {
   const navigate = useNavigate()
+  const { locale } = useLanguage()
+  const isZh = locale === 'zh-CN'
   const [rules, setRules] = useState<DataQualityRule[]>([])
   const [events, setEvents] = useState<DataQualityRuleOptionEvent[]>([])
   const [assets, setAssets] = useState<DataQualityRuleOptionAsset[]>([])
@@ -92,7 +95,7 @@ const DataQuality = () => {
       })
       setRules(rows)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load data quality rules')
+      setError(e?.response?.data?.message ?? (isZh ? '加载数据质量规则失败' : 'Failed to load data quality rules'))
     } finally {
       setLoading(false)
     }
@@ -107,7 +110,7 @@ const DataQuality = () => {
       const data = await GenesisApi.getDataQualityRuleDetail(ruleId)
       setDetail(data)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load rule detail')
+      setError(e?.response?.data?.message ?? (isZh ? '加载规则详情失败' : 'Failed to load rule detail'))
     } finally {
       setDetailLoading(false)
     }
@@ -231,7 +234,7 @@ const DataQuality = () => {
     <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
       <div className="flex justify-between items-center mb-6">
         <header>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Data Quality</h2>
+          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{isZh ? '数据质量' : 'Data Quality'}</h2>
           <p className="text-slate-500 text-base">Define rules, execute checks, and triage quality alerts.</p>
         </header>
         <button

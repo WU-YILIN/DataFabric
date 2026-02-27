@@ -19,6 +19,7 @@ import {
   type CostUsageResourceItem,
   type CostUsageResourceListResponse,
 } from '../services/api'
+import { useLanguage } from '../i18n/language'
 
 type DatePreset = '7D' | '30D' | 'CUSTOM'
 
@@ -47,6 +48,8 @@ const buildRange = (preset: DatePreset, customFrom: string, customTo: string) =>
 
 const CostUsageAnalytics = () => {
   const navigate = useNavigate()
+  const { locale } = useLanguage()
+  const isZh = locale === 'zh-CN'
   const [overview, setOverview] = useState<CostUsageOverviewResponse | null>(null)
   const [resourcesResp, setResourcesResp] = useState<CostUsageResourceListResponse | null>(null)
   const [detail, setDetail] = useState<CostUsageResourceDetailResponse | null>(null)
@@ -119,7 +122,7 @@ const CostUsageAnalytics = () => {
       })
       setOverview(data)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load cost usage overview')
+      setError(e?.response?.data?.message ?? (isZh ? '加载成本总览失败' : 'Failed to load cost usage overview'))
     } finally {
       setLoadingOverview(false)
     }
@@ -154,7 +157,7 @@ const CostUsageAnalytics = () => {
         )
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load resource costs')
+      setError(e?.response?.data?.message ?? (isZh ? '加载资源成本失败' : 'Failed to load resource costs'))
     } finally {
       setLoadingResources(false)
     }
@@ -173,7 +176,7 @@ const CostUsageAnalytics = () => {
       })
       setDetail(data)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load resource detail')
+      setError(e?.response?.data?.message ?? (isZh ? '加载资源详情失败' : 'Failed to load resource detail'))
       setDetail(null)
     } finally {
       setLoadingDetail(false)
@@ -219,7 +222,7 @@ const CostUsageAnalytics = () => {
     <div className="max-w-7xl mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Cost & Usage Analytics</h2>
+          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{isZh ? '成本与用量分析' : 'Cost & Usage Analytics'}</h2>
           <p className="text-slate-500 text-base">
             Analyze spend by module/resource, identify high-cost objects, and jump to optimization actions.
           </p>
