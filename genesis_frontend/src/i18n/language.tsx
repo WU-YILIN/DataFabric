@@ -195,6 +195,10 @@ const AUTO_ZH_MAP: Record<string, string> = {
   Diff: '变更差异',
 }
 
+const AUTO_EN_MAP: Record<string, string> = Object.fromEntries(
+  Object.entries(AUTO_ZH_MAP).map(([en, zh]) => [zh, en]),
+)
+
 const textOriginalMap = new WeakMap<Text, string>()
 const attrOriginalMap = new WeakMap<Element, Map<string, string>>()
 
@@ -217,27 +221,36 @@ function resolveInitialLocale(): Locale {
   return DEFAULT_LOCALE
 }
 
-function translateLoose(raw: string): string {
+function translateToZh(raw: string): string {
   const trimmed = raw.trim()
-  if (!trimmed) {
-    return raw
-  }
+  if (!trimmed) return raw
 
   let next = AUTO_ZH_MAP[trimmed] ?? trimmed
-
   next = next
     .replace(/^(\d+)\s+items$/i, '$1 条')
     .replace(/^(\d+)\s+logs$/i, '$1 条日志')
     .replace(/^Loading\s+(.+)\.\.\.$/i, '加载 $1 中...')
     .replace(/^No\s+(.+)\.$/i, '暂无$1。')
 
-  if (next === trimmed) {
-    return raw
-  }
-
+  if (next === trimmed) return raw
   const leading = raw.match(/^\s*/)?.[0] ?? ''
   const trailing = raw.match(/\s*$/)?.[0] ?? ''
-  return `${leading}${next}${trailing}`
+  return leading + next + trailing
+}
+
+function translateToEn(raw: string): string {
+  const trimmed = raw.trim()
+  if (!trimmed) return raw
+
+  const next = AUTO_EN_MAP[trimmed] ?? trimmed
+  if (next === trimmed) return raw
+  const leading = raw.match(/^\s*/)?.[0] ?? ''
+  const trailing = raw.match(/\s*$/)?.[0] ?? ''
+  return leading + next + trailing
+}
+
+function translateLoose(raw: string, locale: Locale): string {
+  return locale === 'zh-CN' ? translateToZh(raw) : translateToEn(raw)
 }
 
 function shouldSkipTextNode(node: Text): boolean {
@@ -259,7 +272,7 @@ function localizeTextNode(node: Text, locale: Locale) {
     textOriginalMap.set(node, node.nodeValue ?? '')
   }
   const original = textOriginalMap.get(node) ?? ''
-  const next = locale === 'zh-CN' ? translateLoose(original) : original
+  const next = translateLoose(original, locale)
   if (node.nodeValue !== next) {
     node.nodeValue = next
   }
@@ -282,7 +295,7 @@ function localizeElementAttrs(el: Element, locale: Locale) {
       originalMap.set(attr, current)
     }
     const original = originalMap.get(attr) ?? current
-    const next = locale === 'zh-CN' ? translateLoose(original) : original
+    const next = translateLoose(original, locale)
     if (next !== current) {
       el.setAttribute(attr, next)
     }
@@ -294,7 +307,7 @@ function localizeElementAttrs(el: Element, locale: Locale) {
         originalMap.set('value', el.value)
       }
       const original = originalMap.get('value') ?? el.value
-      const next = locale === 'zh-CN' ? translateLoose(original) : original
+      const next = translateLoose(original, locale)
       if (el.value !== next) {
         el.value = next
       }
