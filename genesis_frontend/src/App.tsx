@@ -19,7 +19,6 @@ import {
   Scale,
   SearchCode,
   Server,
-  Settings,
   ShieldCheck,
   Rocket,
   Users2,
@@ -208,6 +207,14 @@ function App() {
             <div className="text-right">
               <div className="text-sm font-semibold">{user?.name}</div>
               <div className="text-xs text-slate-500">{user?.email}</div>
+              <div className="mt-1 flex justify-end gap-2">
+                <Link
+                  to="/settings"
+                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
+                >
+                  {L('设置', 'Settings')}
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -229,7 +236,6 @@ function App() {
             </div>
 
             <div className="mt-5 border-t border-slate-200 pt-3">
-              <SidebarItem to="/settings" icon={Settings} label={t('nav.settings')} />
               <button
                 onClick={logout}
                 className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
