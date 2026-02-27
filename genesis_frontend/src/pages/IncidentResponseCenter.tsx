@@ -1,6 +1,7 @@
 ﻿import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { clsx } from 'clsx'
 import { AlertTriangle, ClipboardList, RefreshCw, ShieldCheck } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 
 import {
   GenesisApi,
@@ -49,6 +50,7 @@ const parseJsonObject = (value: string): Record<string, unknown> | null => {
 const prettyJson = (value: unknown): string => JSON.stringify(value ?? {}, null, 2)
 
 const IncidentResponseCenter = () => {
+  const navigate = useNavigate()
   const { locale } = useLanguage()
   const isZh = locale === 'zh-CN'
   const [overview, setOverview] = useState<IncidentOverviewResponse | null>(null)
@@ -329,6 +331,24 @@ const IncidentResponseCenter = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-4">
+      <section className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">{isZh ? '下一步建议' : 'Recommended Next Step'}</p>
+            <p className="text-xs text-slate-600">
+              {isZh ? '事故处理后请回到监控确认恢复，并在成本页评估影响。' : 'After incident handling, confirm recovery in monitoring and assess impact in cost analytics.'}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => navigate('/monitoring')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? '去监控' : 'Go Monitoring'}
+            </button>
+            <button onClick={() => navigate('/cost')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? '去成本' : 'Go Cost'}
+            </button>
+          </div>
+        </div>
+      </section>
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{isZh ? '事故响应与 Runbook 中心' : 'Incident Response & Runbook Center'}</h2>

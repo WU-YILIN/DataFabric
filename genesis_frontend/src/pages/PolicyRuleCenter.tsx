@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { clsx } from 'clsx'
 import { FileStack, PlayCircle, RefreshCw, Scale, ShieldAlert } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { useLanguage } from '../i18n/language'
 
 import {
   GenesisApi,
@@ -11,6 +13,9 @@ import {
 } from '../services/api'
 
 const PolicyRuleCenterPage = () => {
+  const navigate = useNavigate()
+  const { locale } = useLanguage()
+  const isZh = locale === 'zh-CN'
   const [overview, setOverview] = useState<any>(null)
   const [templates, setTemplates] = useState<PolicyTemplateItem[]>([])
   const [listResp, setListResp] = useState<PolicyRuleListResponse | null>(null)
@@ -306,6 +311,24 @@ const PolicyRuleCenterPage = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-4">
+      <section className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">{isZh ? '下一步建议' : 'Recommended Next Step'}</p>
+            <p className="text-xs text-slate-600">
+              {isZh ? '策略评估通过后，建议前往发布中心执行变更并在审计日志确认留痕。' : 'After policy validation, proceed to Release Center and verify traces in audit logs.'}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => navigate('/release-center')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? '去发布中心' : 'Go Release Center'}
+            </button>
+            <button onClick={() => navigate('/logs')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? '看审计日志' : 'View Audit Logs'}
+            </button>
+          </div>
+        </div>
+      </section>
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Policy & Rule Center</h2>
