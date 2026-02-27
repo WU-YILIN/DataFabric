@@ -360,21 +360,23 @@ const SettingsPage = () => {
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>
       )}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="text-lg font-semibold text-slate-900">{t('settings.languageTitle')}</h3>
-        <p className="mt-1 text-sm text-slate-600">{t('settings.languageDesc')}</p>
-        <div className="mt-4 max-w-xs">
-          <label className="block text-sm font-medium text-slate-700 mb-1">{t('settings.languageLabel')}</label>
-          <select
-            value={locale}
-            onChange={(e) => setLocale(e.target.value as 'zh-CN' | 'en-US')}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white"
-          >
-            <option value="zh-CN">中文</option>
-            <option value="en-US">English</option>
-          </select>
-        </div>
-      </section>
+      {activeTab === 'general' && (
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-semibold text-slate-900">{t('settings.languageTitle')}</h3>
+          <p className="mt-1 text-sm text-slate-600">{t('settings.languageDesc')}</p>
+          <div className="mt-4 max-w-xs">
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t('settings.languageLabel')}</label>
+            <select
+              value={locale}
+              onChange={(e) => setLocale(e.target.value as 'zh-CN' | 'en-US')}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white"
+            >
+              <option value="zh-CN">中文</option>
+              <option value="en-US">English</option>
+            </select>
+          </div>
+        </section>
+      )}
 
       {activeTab === 'general' && (
         <form onSubmit={onSaveGeneral} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">

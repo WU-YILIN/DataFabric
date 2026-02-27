@@ -204,26 +204,26 @@ function App() {
                 EN
               </button>
             </div>
-            <details className="relative">
-              <summary className="list-none cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-right hover:bg-slate-50">
+            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2">
+              <div className="text-right">
                 <div className="text-sm font-semibold">{user?.name}</div>
                 <div className="text-xs text-slate-500">{user?.email}</div>
-              </summary>
-              <div className="absolute right-0 mt-2 w-44 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
-                <Link to="/settings" className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+              </div>
+              <div className="mt-2 flex items-center justify-end gap-2">
+                <Link to="/settings" className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50">
                   {L('个人设置', 'Personal Settings')}
                 </Link>
-                <Link to="/access" className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                <Link to="/access" className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50">
                   {L('个人权限', 'My Access')}
                 </Link>
                 <button
                   onClick={logout}
-                  className="mt-1 w-full rounded-lg px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"
+                  className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[11px] text-rose-600 hover:bg-rose-100"
                 >
                   {L('退出登录', 'Log out')}
                 </button>
               </div>
-            </details>
+            </div>
           </div>
         </div>
 

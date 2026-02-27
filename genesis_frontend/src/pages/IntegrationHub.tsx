@@ -161,7 +161,7 @@ const IntegrationHub = () => {
     if (!selectedType) return
     const config = parseJsonObject(form.configJson)
     if (!config) {
-      setError('Config JSON �����Ƕ���')
+      setError('Config JSON format is invalid')
       return
     }
 
@@ -185,7 +185,7 @@ const IntegrationHub = () => {
     if (!selectedType) return
     const config = parseJsonObject(form.configJson)
     if (!config) {
-      setError('Config JSON �����Ƕ���')
+      setError('Config JSON format is invalid')
       return
     }
 
@@ -209,7 +209,7 @@ const IntegrationHub = () => {
     if (!selectedType) return
     const payload = parseJsonObject(invokeForm.payloadJson)
     if (!payload) {
-      setError('Invoke payload JSON �����Ƕ���')
+      setError('Invoke payload JSON format is invalid')
       return
     }
 
