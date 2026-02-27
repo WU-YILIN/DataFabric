@@ -370,43 +370,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     document.documentElement.lang = locale
   }, [locale])
 
+  // NOTE: disable DOM mutation based auto-translation to avoid mixed-language residual artifacts.
+  // Keep locale switching via explicit i18n keys/components only.
   useEffect(() => {
-    if (typeof document === 'undefined') {
-      return
-    }
-    let scheduled = false
-    let rafId = 0
-
-    const run = () => {
-      scheduled = false
-      localizeDom(locale)
-    }
-
-    const schedule = () => {
-      if (scheduled) {
-        return
-      }
-      scheduled = true
-      rafId = window.requestAnimationFrame(run)
-    }
-
-    localizeDom(locale)
-
-    const observer = new MutationObserver(() => {
-      schedule()
-    })
-    observer.observe(document.body, {
-      subtree: true,
-      childList: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: ['placeholder', 'title', 'aria-label', 'value'],
-    })
-
-    return () => {
-      observer.disconnect()
-      window.cancelAnimationFrame(rafId)
-    }
+    // keep helper symbol referenced for strict TS, but do not mutate DOM to avoid mixed-language residue.
+    void localizeDom
+    return
   }, [locale])
 
   const value = useMemo<LanguageContextValue>(
