@@ -24,6 +24,7 @@ import {
   Users2,
   Wifi,
   Workflow,
+  MoreHorizontal,
 } from 'lucide-react'
 
 import { useSession } from './auth/session'
@@ -119,6 +120,7 @@ function App() {
     activeTenantId,
     activeProjectId,
     activeTenant,
+    logout,
     switchTenant,
     switchProject,
   } = useSession()
@@ -207,6 +209,16 @@ function App() {
               <div className="text-sm font-semibold">{user?.name}</div>
               <div className="text-xs text-slate-500">{user?.email}</div>
             </div>
+            <details className="relative">
+              <summary className="list-none cursor-pointer rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50">
+                <MoreHorizontal size={14} />
+              </summary>
+              <div className="absolute right-0 z-20 mt-2 w-44 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+                <Link to="/settings" className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">{L('个人设置', 'Personal Settings')}</Link>
+                <Link to="/access" className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">{L('个人权限', 'My Access')}</Link>
+                <button onClick={logout} className="w-full rounded-lg px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50">{L('退出登录', 'Log out')}</button>
+              </div>
+            </details>
           </div>
         </div>
 

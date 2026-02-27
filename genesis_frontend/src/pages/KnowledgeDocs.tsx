@@ -23,6 +23,7 @@ import {
   type KnowledgeOverviewResponse,
   type KnowledgeTemplateItem,
 } from '../services/api'
+import { useLanguage } from '../i18n/language'
 
 const statusClass: Record<string, string> = {
   DRAFT: 'bg-amber-100 text-amber-700',
@@ -97,6 +98,8 @@ const lineDelta = (base: string, target: string) => {
 const KnowledgeDocs = () => {
   const navigate = useNavigate()
   const location = useLocation()
+  const { locale } = useLanguage()
+  const isZh = locale === 'zh-CN'
 
   const [overview, setOverview] = useState<KnowledgeOverviewResponse | null>(null)
   const [templates, setTemplates] = useState<KnowledgeTemplateItem[]>([])
@@ -145,7 +148,7 @@ const KnowledgeDocs = () => {
       const data = await GenesisApi.getKnowledgeOverview()
       setOverview(data)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load knowledge overview')
+      setError(e?.response?.data?.message ?? (isZh ? '加载知识库总览失败' : 'Failed to load knowledge overview'))
     } finally {
       setLoadingOverview(false)
     }
@@ -183,7 +186,7 @@ const KnowledgeDocs = () => {
         setSelectedDocId(data.items[0]?.id ?? null)
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load documents')
+      setError(e?.response?.data?.message ?? (isZh ? '加载文档失败' : 'Failed to load documents'))
     } finally {
       setLoadingDocs(false)
     }
@@ -215,7 +218,7 @@ const KnowledgeDocs = () => {
         change_note: '',
       })
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load document detail')
+      setError(e?.response?.data?.message ?? (isZh ? '加载文档详情失败' : 'Failed to load document detail'))
       setDetail(null)
     } finally {
       setLoadingDetail(false)
@@ -445,8 +448,8 @@ const KnowledgeDocs = () => {
     <div className="max-w-7xl mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Knowledge & Documentation Center</h2>
-          <p className="text-slate-500 text-base">Document runbooks, specs, and operational knowledge with version history.</p>
+          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{isZh ? '知识与文档中心' : 'Knowledge & Documentation Center'}</h2>
+          <p className="text-slate-500 text-base">{isZh ? '沉淀运行手册、规范与运营知识，并管理版本历史。' : 'Document runbooks, specs, and operational knowledge with version history.'}</p>
         </div>
         <button
           onClick={() => void refreshAll()}
@@ -492,7 +495,7 @@ const KnowledgeDocs = () => {
         <div className="glass rounded-3xl border border-slate-200/60 p-4">
           <div className="flex items-center gap-2 mb-3">
             <BookCopy size={16} className="text-slate-500" />
-            <h3 className="text-sm font-semibold text-slate-800">Create Document</h3>
+            <h3 className="text-sm font-semibold text-slate-800">{isZh ? '创建文档' : 'Create Document'}</h3>
           </div>
           <form onSubmit={createDocument} className="space-y-2">
             <select
@@ -631,7 +634,7 @@ const KnowledgeDocs = () => {
         <div className="glass rounded-3xl border border-slate-200/60 p-4 xl:col-span-2">
           <div className="flex items-center gap-2 mb-3">
             <History size={16} className="text-slate-500" />
-            <h3 className="text-sm font-semibold text-slate-800">Directory & Filters</h3>
+            <h3 className="text-sm font-semibold text-slate-800">{isZh ? '目录与筛选' : 'Directory & Filters'}</h3>
           </div>
           <form onSubmit={applyFilters} className="grid grid-cols-1 md:grid-cols-6 gap-2">
             <div className="md:col-span-2 relative">
