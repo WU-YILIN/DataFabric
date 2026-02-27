@@ -220,6 +220,24 @@ const CostUsageAnalytics = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
+      <section className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">{isZh ? '下一步建议' : 'Recommended Next Step'}</p>
+            <p className="text-xs text-slate-600">
+              {isZh ? '识别 Top 成本资源后，回到管道和质量模块做针对性优化。' : 'After identifying top cost resources, optimize related pipelines and DQ rules.'}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => navigate('/pipelines')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? '去管道' : 'Go Pipelines'}
+            </button>
+            <button onClick={() => navigate('/data-quality')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? '去数据质量' : 'Go Data Quality'}
+            </button>
+          </div>
+        </div>
+      </section>
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{isZh ? '成本与用量分析' : 'Cost & Usage Analytics'}</h2>

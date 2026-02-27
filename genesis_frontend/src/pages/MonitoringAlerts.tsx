@@ -166,6 +166,24 @@ const MonitoringAlerts = () => {
 
   return (
     <div className="max-w-7xl mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
+      <section className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">{isZh ? '下一步建议' : 'Recommended Next Step'}</p>
+            <p className="text-xs text-slate-600">
+              {isZh ? '优先处理 P0/P1 告警，处理完成后回到成本页核对异常波动。' : 'Resolve P0/P1 alerts first, then validate anomaly impact on cost page.'}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => navigate('/cost')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? '去成本' : 'Go Cost'}
+            </button>
+            <button onClick={() => navigate('/logs')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? '看审计日志' : 'View Audit Logs'}
+            </button>
+          </div>
+        </div>
+      </section>
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{isZh ? '监控与告警' : 'Monitoring & Alerts'}</h2>

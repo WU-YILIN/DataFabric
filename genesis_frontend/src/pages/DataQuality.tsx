@@ -232,6 +232,24 @@ const DataQuality = () => {
 
   return (
     <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
+      <section className="mb-4 rounded-2xl border border-slate-200 bg-white/80 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">{isZh ? '下一步建议' : 'Recommended Next Step'}</p>
+            <p className="text-xs text-slate-600">
+              {isZh ? '规则配置后先执行一次验证，再到监控页确认告警链路。' : 'Run validation once after rule setup, then verify alert pipeline in monitoring.'}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => navigate('/monitoring')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? '去监控' : 'Go Monitoring'}
+            </button>
+            <button onClick={() => navigate('/cost')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? '去成本' : 'Go Cost'}
+            </button>
+          </div>
+        </div>
+      </section>
       <div className="flex justify-between items-center mb-6">
         <header>
           <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{isZh ? '数据质量' : 'Data Quality'}</h2>
