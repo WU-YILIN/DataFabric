@@ -25,6 +25,7 @@ import {
   Users2,
   Wifi,
   Workflow,
+  Braces,
 } from 'lucide-react'
 
 import { useSession } from './auth/session'
@@ -34,6 +35,7 @@ import Governance from './pages/Governance'
 import Events from './pages/Events'
 import AISpecCenter from './pages/AISpecCenter'
 import AIDedupReuseCenter from './pages/AIDedupReuseCenter'
+import AIFlinkSqlStudio from './pages/AIFlinkSqlStudio'
 import Pipelines from './pages/Pipelines'
 import DataCatalog from './pages/DataCatalog'
 import DataQuality from './pages/DataQuality'
@@ -64,6 +66,7 @@ const primaryFlow: SidebarEntry[] = [
   { to: '/', icon: LayoutDashboard, zh: '总览', en: 'Dashboard' },
   { to: '/ai-spec', icon: Database, zh: 'AI 规范', en: 'AI Spec' },
   { to: '/ai-dedup', icon: SearchCode, zh: 'AI 查重', en: 'AI Dedup' },
+  { to: '/ai-sql', icon: Braces, zh: 'AI SQL', en: 'AI SQL' },
   { to: '/events', icon: Database, zh: '事件', en: 'Events' },
   { to: '/governance', icon: ShieldCheck, zh: '治理', en: 'Governance' },
   { to: '/pipelines', icon: Workflow, zh: '管道', en: 'Pipelines' },
@@ -263,6 +266,7 @@ function App() {
               <Route path="/ingestion" element={<IngestionSdkCenter />} />
               <Route path="/ai-spec" element={<AISpecCenter />} />
               <Route path="/ai-dedup" element={<AIDedupReuseCenter />} />
+              <Route path="/ai-sql" element={<AIFlinkSqlStudio />} />
               <Route path="/events" element={<Events />} />
               <Route path="/catalog" element={<DataCatalog />} />
               <Route path="/data-quality" element={<DataQuality />} />
