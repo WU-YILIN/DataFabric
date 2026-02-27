@@ -55,38 +55,38 @@ import DataProductMarketplace from './pages/DataProductMarketplace'
 import IncidentResponseCenter from './pages/IncidentResponseCenter'
 import { useLanguage } from './i18n/language'
 
-type SidebarEntry = { to: string; icon: any; label: string }
+type SidebarEntry = { to: string; icon: any; zh: string; en: string }
 
 const primaryFlow: SidebarEntry[] = [
-  { to: '/', icon: LayoutDashboard, label: '总览 Dashboard' },
-  { to: '/events', icon: Database, label: '事件 Events' },
-  { to: '/governance', icon: ShieldCheck, label: '治理 Governance' },
-  { to: '/pipelines', icon: Workflow, label: '管道 Pipelines' },
-  { to: '/data-quality', icon: FlaskConical, label: '质量 Data Quality' },
-  { to: '/scheduler', icon: CalendarClock, label: '调度 Scheduler' },
-  { to: '/monitoring', icon: Activity, label: '监控 Monitoring' },
-  { to: '/cost', icon: DollarSign, label: '成本 Cost' },
+  { to: '/', icon: LayoutDashboard, zh: '总览', en: 'Dashboard' },
+  { to: '/events', icon: Database, zh: '事件', en: 'Events' },
+  { to: '/governance', icon: ShieldCheck, zh: '治理', en: 'Governance' },
+  { to: '/pipelines', icon: Workflow, zh: '管道', en: 'Pipelines' },
+  { to: '/data-quality', icon: FlaskConical, zh: '质量', en: 'Data Quality' },
+  { to: '/scheduler', icon: CalendarClock, zh: '调度', en: 'Scheduler' },
+  { to: '/monitoring', icon: Activity, zh: '监控', en: 'Monitoring' },
+  { to: '/cost', icon: DollarSign, zh: '成本', en: 'Cost' },
 ]
 
 const advancedFlow: SidebarEntry[] = [
-  { to: '/catalog', icon: BookOpen, label: '目录 Catalog' },
-  { to: '/explore', icon: SearchCode, label: '探索 Explore' },
-  { to: '/infrastructure', icon: Server, label: '基础设施 Infrastructure' },
-  { to: '/integration-hub', icon: Cable, label: '集成中心 Integration Hub' },
-  { to: '/access', icon: KeyRound, label: '权限 Access' },
-  { to: '/incidents', icon: AlertTriangle, label: '事件响应 Incidents' },
-  { to: '/collaboration', icon: Users2, label: '协作 Collaboration' },
-  { to: '/knowledge', icon: FileText, label: '知识库 Knowledge' },
-  { to: '/logs', icon: History, label: '审计日志 Audit Logs' },
-  { to: '/policy-center', icon: Scale, label: '策略中心 Policy Center' },
-  { to: '/release-center', icon: Rocket, label: '发布中心 Release Center' },
-  { to: '/reports', icon: BarChart3, label: '报表 Reports' },
-  { to: '/marketplace', icon: Boxes, label: '市场 Marketplace' },
-  { to: '/ingestion', icon: Wifi, label: '接入 SDK Ingestion SDK' },
-  { to: '/sandbox', icon: Beaker, label: '沙箱 Sandbox' },
+  { to: '/catalog', icon: BookOpen, zh: '目录', en: 'Catalog' },
+  { to: '/explore', icon: SearchCode, zh: '探索', en: 'Explore' },
+  { to: '/infrastructure', icon: Server, zh: '基础设施', en: 'Infrastructure' },
+  { to: '/integration-hub', icon: Cable, zh: '集成中心', en: 'Integration Hub' },
+  { to: '/access', icon: KeyRound, zh: '权限', en: 'Access' },
+  { to: '/incidents', icon: AlertTriangle, zh: '事件响应', en: 'Incidents' },
+  { to: '/collaboration', icon: Users2, zh: '协作', en: 'Collaboration' },
+  { to: '/knowledge', icon: FileText, zh: '知识库', en: 'Knowledge' },
+  { to: '/logs', icon: History, zh: '审计日志', en: 'Audit Logs' },
+  { to: '/policy-center', icon: Scale, zh: '策略中心', en: 'Policy Center' },
+  { to: '/release-center', icon: Rocket, zh: '发布中心', en: 'Release Center' },
+  { to: '/reports', icon: BarChart3, zh: '报表', en: 'Reports' },
+  { to: '/marketplace', icon: Boxes, zh: '市场', en: 'Marketplace' },
+  { to: '/ingestion', icon: Wifi, zh: '接入 SDK', en: 'Ingestion SDK' },
+  { to: '/sandbox', icon: Beaker, zh: '沙箱', en: 'Sandbox' },
 ]
 
-const SidebarItem = ({ to, icon: Icon, label }: SidebarEntry) => {
+const SidebarItem = ({ to, icon: Icon, label }: { to: string; icon: any; label: string }) => {
   const location = useLocation()
   const isActive = location.pathname === to
 
@@ -107,7 +107,9 @@ const SidebarItem = ({ to, icon: Icon, label }: SidebarEntry) => {
 }
 
 function App() {
-  const { t } = useLanguage()
+  const { t, locale, setLocale } = useLanguage()
+  const zh = locale === 'zh-CN'
+  const L = (cn: string, en: string) => (zh ? cn : en)
   const {
     isLoading,
     isSwitchingContext,
@@ -153,11 +155,27 @@ function App() {
         <div className="mb-4 flex items-center justify-between rounded-3xl border border-white/70 bg-white/70 px-6 py-4 backdrop-blur-xl shadow-sm">
           <div>
             <div className="text-xs uppercase tracking-[0.16em] text-slate-500">DataFabric</div>
-            <div className="text-2xl font-semibold tracking-tight">构建可信数据运营 · Build trusted data operations.</div>
+            <div className="text-2xl font-semibold tracking-tight">{L('构建可信数据运营', 'Build trusted data operations.')}</div>
           </div>
-          <div className="text-right">
-            <div className="text-sm font-semibold">{user?.name}</div>
-            <div className="text-xs text-slate-500">{user?.email}</div>
+          <div className="flex items-center gap-3">
+            <div className="rounded-xl border border-slate-200 bg-white p-1 text-xs">
+              <button
+                className={clsx('rounded-lg px-2 py-1', locale === 'zh-CN' ? 'bg-black text-white' : 'text-slate-600')}
+                onClick={() => setLocale('zh-CN')}
+              >
+                中文
+              </button>
+              <button
+                className={clsx('rounded-lg px-2 py-1', locale === 'en-US' ? 'bg-black text-white' : 'text-slate-600')}
+                onClick={() => setLocale('en-US')}
+              >
+                EN
+              </button>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-semibold">{user?.name}</div>
+              <div className="text-xs text-slate-500">{user?.email}</div>
+            </div>
           </div>
         </div>
 
@@ -201,17 +219,17 @@ function App() {
               </select>
             </div>
 
-            <div className="mb-2 px-1 text-[11px] uppercase tracking-wider text-slate-500">核心流程 Core Flow</div>
+            <div className="mb-2 px-1 text-[11px] uppercase tracking-wider text-slate-500">{L('核心流程', 'Core Flow')}</div>
             <div className="space-y-1">
               {primaryFlow.map((item) => (
-                <SidebarItem key={item.to} {...item} />
+                <SidebarItem key={item.to} to={item.to} icon={item.icon} label={L(item.zh, item.en)} />
               ))}
             </div>
 
-            <div className="mb-2 mt-5 px-1 text-[11px] uppercase tracking-wider text-slate-500">高级模块 Advanced</div>
+            <div className="mb-2 mt-5 px-1 text-[11px] uppercase tracking-wider text-slate-500">{L('高级模块', 'Advanced')}</div>
             <div className="space-y-1">
               {advancedFlow.map((item) => (
-                <SidebarItem key={item.to} {...item} />
+                <SidebarItem key={item.to} to={item.to} icon={item.icon} label={L(item.zh, item.en)} />
               ))}
             </div>
 

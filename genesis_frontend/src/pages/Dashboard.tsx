@@ -109,7 +109,7 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="glass rounded-2xl p-6 xl:col-span-2">
           <div className="flex items-center justify-between mb-5">
-            <h3 className="text-xl font-bold text-slate-900 tracking-tight">Recent Activity</h3>
+            <h3 className="text-xl font-bold text-slate-900 tracking-tight">{isZh ? '最近活动' : 'Recent Activity'}</h3>
             <span className="text-xs text-slate-500">
               {recentActivity.length} {isZh ? '条' : 'items'}
             </span>
@@ -146,7 +146,7 @@ const Dashboard = () => {
 
         <div className="space-y-6">
           <div className="glass rounded-2xl p-6">
-            <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-4">Risks</h3>
+            <h3 className="text-xl font-bold text-slate-900 tracking-tight mb-4">{isZh ? '风险' : 'Risks'}</h3>
             <div className="space-y-3 text-sm">
               <div className="rounded-xl border border-rose-100 bg-rose-50/60 p-3">
                 <div className="flex items-center gap-2 text-rose-700 font-semibold">
