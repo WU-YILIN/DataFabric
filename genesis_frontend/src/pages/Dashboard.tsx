@@ -79,12 +79,12 @@ const Dashboard = () => {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <header className="mb-8">
-        <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{isZh ? '总览' : 'Overview'}</h2>
+      <header className="mb-8 rounded-3xl border border-slate-200/70 bg-white/70 p-6 backdrop-blur-xl">
+        <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{isZh ? '业务总览' : 'Business Overview'}</h2>
         <p className="text-slate-500 text-base">
           {isZh
-            ? '基于租户/项目隔离展示治理活动、风险状态与待办事项。'
-            : 'Tenant/project scoped status with governance activity, risks, and pending actions.'}
+            ? '按租户/项目展示治理活动、风险状态与待办事项，支持中英切换。'
+            : 'Tenant/project scoped governance, risk status, and todos with bilingual switch.'}
         </p>
       </header>
 
