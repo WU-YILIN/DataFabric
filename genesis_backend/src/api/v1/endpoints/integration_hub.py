@@ -740,7 +740,12 @@ async def test_integration(
     )
     existing = result.scalar_one_or_none()
     existing_config = decrypt_mapping(existing.encrypted_config) if existing else {}
-    merged_config = _merge_config(normalized_type, existing_config, request.config)
+    # For explicit test endpoint, validate the payload itself first.
+    # This prevents a previously saved valid config from masking an invalid empty payload.
+    if request.config:
+        merged_config = _merge_config(normalized_type, existing_config, request.config)
+    else:
+        merged_config = {}
 
     test_status, test_message, error_code = _validate_integration_config(normalized_type, merged_config)
     latency_ms = int(40 + min(300, len(json.dumps(merged_config, ensure_ascii=True)) * 0.35))
