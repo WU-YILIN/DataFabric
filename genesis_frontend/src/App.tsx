@@ -204,18 +204,26 @@ function App() {
                 EN
               </button>
             </div>
-            <div className="text-right">
-              <div className="text-sm font-semibold">{user?.name}</div>
-              <div className="text-xs text-slate-500">{user?.email}</div>
-              <div className="mt-1 flex justify-end gap-2">
-                <Link
-                  to="/settings"
-                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
-                >
-                  {L('设置', 'Settings')}
+            <details className="relative">
+              <summary className="list-none cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 text-right hover:bg-slate-50">
+                <div className="text-sm font-semibold">{user?.name}</div>
+                <div className="text-xs text-slate-500">{user?.email}</div>
+              </summary>
+              <div className="absolute right-0 mt-2 w-44 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+                <Link to="/settings" className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                  {L('个人设置', 'Personal Settings')}
                 </Link>
+                <Link to="/access" className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                  {L('个人权限', 'My Access')}
+                </Link>
+                <button
+                  onClick={logout}
+                  className="mt-1 w-full rounded-lg px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50"
+                >
+                  {L('退出登录', 'Log out')}
+                </button>
               </div>
-            </div>
+            </details>
           </div>
         </div>
 
@@ -235,14 +243,6 @@ function App() {
               ))}
             </div>
 
-            <div className="mt-5 border-t border-slate-200 pt-3">
-              <button
-                onClick={logout}
-                className="mt-2 w-full rounded-2xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
-              >
-                {t('app.logout')}
-              </button>
-            </div>
           </aside>
 
           <main className="rounded-3xl border border-white/70 bg-white/70 p-5 backdrop-blur-xl shadow-sm md:p-7">
