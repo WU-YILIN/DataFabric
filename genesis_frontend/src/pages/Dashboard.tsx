@@ -8,9 +8,11 @@ import {
   ListChecks,
   ShieldCheck,
   Siren,
+  ArrowRight,
 } from 'lucide-react'
 
 import { clsx } from 'clsx'
+import { Link } from 'react-router-dom'
 import {
   GenesisApi,
   type OverviewActivityItem,
@@ -105,6 +107,39 @@ const Dashboard = () => {
         <StatCard icon={Activity} label={isZh ? '活跃 Pipelines' : 'Active Pipelines'} value={overview.kpis.active_pipelines} tone="bg-indigo-600" />
         <StatCard icon={AlertTriangle} label={isZh ? '失败 Pipelines' : 'Failed Pipelines'} value={overview.kpis.failed_pipelines} tone="bg-rose-500" />
       </div>
+
+      <section className="mb-8 rounded-2xl border border-slate-200 bg-white/80 p-5">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-slate-900">{isZh ? '一键上线流程' : 'Go-Live Checklist'}</h3>
+          <span className="text-xs text-slate-500">{isZh ? '建议首次客户按此顺序执行' : 'Recommended order for first-time setup'}</span>
+        </div>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-5">
+          <Link to="/events" className="rounded-xl border border-slate-200 bg-white p-4 hover:border-slate-300">
+            <p className="text-xs text-slate-500">1</p>
+            <p className="mt-1 font-semibold text-slate-900">{isZh ? '创建事件' : 'Create Event'}</p>
+          </Link>
+          <Link to="/governance" className="rounded-xl border border-slate-200 bg-white p-4 hover:border-slate-300">
+            <p className="text-xs text-slate-500">2</p>
+            <p className="mt-1 font-semibold text-slate-900">{isZh ? '治理校验' : 'Governance Check'}</p>
+          </Link>
+          <Link to="/pipelines" className="rounded-xl border border-slate-200 bg-white p-4 hover:border-slate-300">
+            <p className="text-xs text-slate-500">3</p>
+            <p className="mt-1 font-semibold text-slate-900">{isZh ? '开通管道' : 'Provision Pipeline'}</p>
+          </Link>
+          <Link to="/data-quality" className="rounded-xl border border-slate-200 bg-white p-4 hover:border-slate-300">
+            <p className="text-xs text-slate-500">4</p>
+            <p className="mt-1 font-semibold text-slate-900">{isZh ? '配置质量规则' : 'Configure DQ Rules'}</p>
+          </Link>
+          <Link to="/monitoring" className="rounded-xl border border-slate-200 bg-white p-4 hover:border-slate-300">
+            <p className="text-xs text-slate-500">5</p>
+            <p className="mt-1 font-semibold text-slate-900">{isZh ? '开启监控告警' : 'Enable Monitoring'}</p>
+          </Link>
+        </div>
+        <div className="mt-4 flex items-center text-sm text-slate-600">
+          <ArrowRight size={16} className="mr-2" />
+          {isZh ? '完成以上 5 步即可形成首个可运行业务闭环。' : 'Complete these 5 steps to form your first runnable business loop.'}
+        </div>
+      </section>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <div className="glass rounded-2xl p-6 xl:col-span-2">
