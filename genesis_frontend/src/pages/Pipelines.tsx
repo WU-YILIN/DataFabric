@@ -214,6 +214,24 @@ const Pipelines = () => {
 
   return (
     <div className="max-w-[1440px] mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
+      <section className="mb-4 rounded-2xl border border-slate-200 bg-white/80 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">{isZh ? '下一步建议' : 'Recommended Next Step'}</p>
+            <p className="text-xs text-slate-600">
+              {isZh ? '管道运行稳定后，请进入数据质量页配置规则并开启监控告警。' : 'After pipeline is stable, configure DQ rules and enable monitoring alerts.'}
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => navigate('/data-quality')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? '去数据质量' : 'Go Data Quality'}
+            </button>
+            <button onClick={() => navigate('/monitoring')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
+              {isZh ? '去监控' : 'Go Monitoring'}
+            </button>
+          </div>
+        </div>
+      </section>
       <header className="mb-6">
         <h2 className="text-3xl font-bold text-gray-900 tracking-tight">{isZh ? '管道控制台' : 'Pipelines Console'}</h2>
         <p className="text-gray-500 text-base">
