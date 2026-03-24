@@ -46,6 +46,19 @@ const StatCard = ({
 const Dashboard = () => {
   const { locale } = useLanguage()
   const isZh = locale === 'zh-CN'
+
+  const localizeTodoText = (text: string) => {
+    if (!isZh) return text
+    return text
+      .replace('Flink job failed', 'Flink 作业失败')
+      .replace('Job is failing repeatedly', '作业持续失败')
+      .replace('requires intervention', '需要人工介入')
+      .replace('Missing flink_job_id', '缺少 flink_job_id')
+      .replace('Scheduler delay', '调度延迟')
+      .replace('DAG run is delayed', 'DAG 运行延迟')
+      .replace('Governance follow-up for', '治理跟进：')
+      .replace('pending review', '待审查')
+  }
   const [overview, setOverview] = useState<OverviewResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -214,7 +227,7 @@ const Dashboard = () => {
               {topTodos.map((todo) => (
                 <div key={todo.id} className="rounded-xl border border-slate-100 bg-white/70 px-3 py-3">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-semibold text-slate-900 line-clamp-1">{todo.title}</p>
+                    <p className="text-sm font-semibold text-slate-900 line-clamp-1">{localizeTodoText(todo.title)}</p>
                     <span
                       className={clsx(
                         'text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full',
@@ -228,7 +241,7 @@ const Dashboard = () => {
                       {todo.priority}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 line-clamp-2">{todo.description}</p>
+                  <p className="text-xs text-slate-500 line-clamp-2">{localizeTodoText(todo.description)}</p>
                   <div className="mt-2 text-[11px] text-slate-500 flex items-center gap-1">
                     <CheckCircle2 size={12} /> {todo.target.type}:{todo.target.label}
                   </div>

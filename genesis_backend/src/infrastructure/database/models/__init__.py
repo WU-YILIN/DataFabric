@@ -49,6 +49,7 @@ from src.infrastructure.database.models.collaboration_workflow import Collaborat
 from src.infrastructure.database.models.collaboration_task import CollaborationTask
 from src.infrastructure.database.models.collaboration_comment import CollaborationComment
 from src.infrastructure.database.models.collaboration_action_history import CollaborationActionHistory
+from src.infrastructure.database.models.analysis_plan import AnalysisPlan
 from src.infrastructure.database.models.knowledge_document import KnowledgeDocument
 from src.infrastructure.database.models.knowledge_document_version import KnowledgeDocumentVersion
 from src.infrastructure.database.models.knowledge_document_comment import KnowledgeDocumentComment
@@ -110,6 +111,7 @@ __all__ = [
     "CollaborationTask",
     "CollaborationComment",
     "CollaborationActionHistory",
+    "AnalysisPlan",
     "KnowledgeDocument",
     "KnowledgeDocumentVersion",
     "KnowledgeDocumentComment",

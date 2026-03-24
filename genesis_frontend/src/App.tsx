@@ -7,6 +7,7 @@ import {
   Beaker,
   BookOpen,
   Boxes,
+  Building2,
   CalendarClock,
   Cable,
   Database,
@@ -24,14 +25,19 @@ import {
   Users2,
   Wifi,
   Workflow,
-  MoreHorizontal,
+  Braces,
 } from 'lucide-react'
 
 import { useSession } from './auth/session'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Governance from './pages/Governance'
+import MetricAnalysisPlanner from './pages/MetricAnalysisPlanner'
 import Events from './pages/Events'
+import AISpecCenter from './pages/AISpecCenter'
+import AIDedupReuseCenter from './pages/AIDedupReuseCenter'
+import AIFlinkSqlStudio from './pages/AIFlinkSqlStudio'
+import FlinkRuntimeOps from './pages/FlinkRuntimeOps'
 import Pipelines from './pages/Pipelines'
 import DataCatalog from './pages/DataCatalog'
 import DataQuality from './pages/DataQuality'
@@ -53,14 +59,20 @@ import ReleaseChangeManagement from './pages/ReleaseChangeManagement'
 import CustomReportsDashboardBuilder from './pages/CustomReportsDashboardBuilder'
 import DataProductMarketplace from './pages/DataProductMarketplace'
 import IncidentResponseCenter from './pages/IncidentResponseCenter'
+import TenantAdmin from './pages/TenantAdmin'
 import { useLanguage } from './i18n/language'
 
 type SidebarEntry = { to: string; icon: any; zh: string; en: string }
 
 const primaryFlow: SidebarEntry[] = [
   { to: '/', icon: LayoutDashboard, zh: '总览', en: 'Dashboard' },
+  { to: '/ai-spec', icon: Database, zh: 'AI 规范', en: 'AI Spec' },
+  { to: '/ai-dedup', icon: SearchCode, zh: 'AI 查重', en: 'AI Dedup' },
+  { to: '/ai-sql', icon: Braces, zh: 'AI SQL', en: 'AI SQL' },
+  { to: '/flink-ops', icon: Activity, zh: 'Flink 运维', en: 'Flink Ops' },
   { to: '/events', icon: Database, zh: '事件', en: 'Events' },
   { to: '/governance', icon: ShieldCheck, zh: '治理', en: 'Governance' },
+  { to: '/analysis-planner', icon: Scale, zh: '分析规划', en: 'Analysis Planner' },
   { to: '/pipelines', icon: Workflow, zh: '管道', en: 'Pipelines' },
   { to: '/data-quality', icon: FlaskConical, zh: '质量', en: 'Data Quality' },
   { to: '/scheduler', icon: CalendarClock, zh: '调度', en: 'Scheduler' },
@@ -82,6 +94,7 @@ const advancedFlow: SidebarEntry[] = [
   { to: '/release-center', icon: Rocket, zh: '发布中心', en: 'Release Center' },
   { to: '/reports', icon: BarChart3, zh: '报表', en: 'Reports' },
   { to: '/marketplace', icon: Boxes, zh: '市场', en: 'Marketplace' },
+  { to: '/tenant-admin', icon: Building2, zh: '租户管理', en: 'Tenant Admin' },
   { to: '/ingestion', icon: Wifi, zh: '接入 SDK', en: 'Ingestion SDK' },
   { to: '/sandbox', icon: Beaker, zh: '沙箱', en: 'Sandbox' },
 ]
@@ -152,7 +165,7 @@ function App() {
   return (
     <div className="min-h-screen w-full bg-[#f5f5f7] text-slate-900">
       <div className="mx-auto max-w-[1560px] px-4 py-4 md:px-6 md:py-6">
-        <div className="mb-4 flex items-center justify-between rounded-3xl border border-white/70 bg-white/70 px-6 py-4 backdrop-blur-xl shadow-sm">
+        <div className="relative z-30 mb-4 flex items-center justify-between rounded-3xl border border-white/70 bg-white/70 px-6 py-4 backdrop-blur-xl shadow-sm">
           <div>
             <div className="text-xs uppercase tracking-[0.16em] text-slate-500">DataFabric</div>
             <div className="text-2xl font-semibold tracking-tight">{L('构建可信数据运营', 'Build trusted data operations.')}</div>
@@ -205,18 +218,23 @@ function App() {
                 EN
               </button>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-right">
-              <div className="text-sm font-semibold">{user?.name}</div>
-              <div className="text-xs text-slate-500">{user?.email}</div>
-            </div>
-            <details className="relative">
-              <summary className="list-none cursor-pointer rounded-lg border border-slate-200 bg-white p-2 text-slate-600 hover:bg-slate-50">
-                <MoreHorizontal size={14} />
+            <details className="relative z-50">
+              <summary className="list-none cursor-pointer rounded-xl border border-slate-200 bg-white px-3 py-2 hover:bg-slate-50">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-xs font-semibold text-slate-700">
+                    {(user?.name?.slice(0, 1) ?? 'U').toUpperCase()}
+                  </div>
+                  <div className="text-left">
+                    <div className="text-sm font-semibold leading-tight">@{user?.name ?? 'user'}</div>
+                    <div className="text-[11px] text-slate-500">{user?.email}</div>
+                  </div>
+                </div>
               </summary>
-              <div className="absolute right-0 z-20 mt-2 w-44 rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
-                <Link to="/settings" className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">{L('个人设置', 'Personal Settings')}</Link>
-                <Link to="/access" className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">{L('个人权限', 'My Access')}</Link>
-                <button onClick={logout} className="w-full rounded-lg px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50">{L('退出登录', 'Log out')}</button>
+              <div className="absolute right-0 top-full z-50 mt-2 w-52 rounded-xl border border-slate-200 bg-white p-1 shadow-xl">
+                <Link to="/" className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">{L('仪表盘', 'Dashboard')}</Link>
+                <Link to="/settings" className="block rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">{L('设置', 'Settings')}</Link>
+                <div className="my-1 h-px bg-slate-200" />
+                <button onClick={logout} className="w-full rounded-lg px-3 py-2 text-left text-sm text-rose-600 hover:bg-rose-50">{L('退出登录', 'Sign out')}</button>
               </div>
             </details>
           </div>
@@ -244,11 +262,17 @@ function App() {
             <Routes key={contextVersion}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/governance" element={<Governance />} />
+              <Route path="/analysis-planner" element={<MetricAnalysisPlanner />} />
               <Route path="/policy-center" element={<PolicyRuleCenterPage />} />
               <Route path="/release-center" element={<ReleaseChangeManagement />} />
               <Route path="/reports" element={<CustomReportsDashboardBuilder />} />
               <Route path="/marketplace" element={<DataProductMarketplace />} />
+              <Route path="/tenant-admin" element={<TenantAdmin />} />
               <Route path="/ingestion" element={<IngestionSdkCenter />} />
+              <Route path="/ai-spec" element={<AISpecCenter />} />
+              <Route path="/ai-dedup" element={<AIDedupReuseCenter />} />
+              <Route path="/ai-sql" element={<AIFlinkSqlStudio />} />
+              <Route path="/flink-ops" element={<FlinkRuntimeOps />} />
               <Route path="/events" element={<Events />} />
               <Route path="/catalog" element={<DataCatalog />} />
               <Route path="/data-quality" element={<DataQuality />} />

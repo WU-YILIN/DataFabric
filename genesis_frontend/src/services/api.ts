@@ -633,6 +633,126 @@ export interface SwitchContextResponse {
   default_context: AuthContextSelection | null
 }
 
+export type PlannerJsonScalar = string | number | boolean | null
+export type PlannerJsonValue = PlannerJsonScalar | PlannerJsonValue[] | { [key: string]: PlannerJsonValue }
+
+export type AnalysisQuestionWeight = 'LIGHT' | 'HEAVY'
+export type AnalysisPlanStatus = 'GENERATED' | 'REVIEW_REQUIRED' | 'REVIEW_CONFIRMED' | 'REJECTED'
+export type ConflictType =
+  | 'FIELD_FACT_MISMATCH'
+  | 'HIGH_COST_REVIEW'
+  | 'BUSINESS_DEFINITION_MISMATCH'
+  | 'PERMISSION_BLOCKER'
+export type AnalysisResultKind = 'TABLE' | 'DATASET'
+export type AnalysisFreshnessMode = 'ON_DEMAND' | 'BATCH'
+export type AnalysisRecommendedEngine = 'duckdb' | 'SPARK_SQL'
+
+export interface MetricCandidate {
+  metric_key: string
+  label: string
+  domain?: string | null
+  is_core_metric: boolean
+}
+
+export interface ConflictItem {
+  conflict_type: ConflictType
+  summary: string
+  metric_key?: string | null
+  is_core_metric: boolean
+  requires_cross_source_access: boolean
+}
+
+export interface ReviewRequirement {
+  code: string
+  summary: string
+}
+
+export interface OfficialEvidenceItem {
+  title: string
+  summary: string
+  content: string
+  doc_type: string
+  module: string
+  tags: string[]
+  meta_payload: Record<string, PlannerJsonValue>
+}
+
+export interface HistoricalEvidenceItem {
+  name: string
+  description: string
+  kind: string
+  scenario: string
+  status: string
+  tags: string[]
+  query_payload: Record<string, PlannerJsonValue>
+  cached_result_payload: Record<string, PlannerJsonValue>
+}
+
+export interface FieldFactEvidenceItem {
+  name: string
+  asset_type: string
+  source_system: string
+  database_name: string
+  object_name: string
+  domain: string
+  description: string
+  schema_definition: Record<string, PlannerJsonValue>
+  tags: string[]
+}
+
+export interface AnalysisEvidenceBundle {
+  official: OfficialEvidenceItem[]
+  historical: HistoricalEvidenceItem[]
+  field_facts: FieldFactEvidenceItem[]
+}
+
+export interface ResultServicePlan {
+  result_kind: AnalysisResultKind
+  freshness_mode: AnalysisFreshnessMode
+  publishable: boolean
+  recommended_engine: AnalysisRecommendedEngine
+  reuse_key: string
+}
+
+export interface AnalysisPlanSummary {
+  id: number
+  project_id: number
+  tenant_id: number
+  question: string
+  status: AnalysisPlanStatus
+  question_weight: AnalysisQuestionWeight
+  metric_candidates: MetricCandidate[]
+  conflicts: ConflictItem[]
+  review_requirements: ReviewRequirement[]
+  evidence_bundle: AnalysisEvidenceBundle
+  result_service_plan: ResultServicePlan
+  collaboration_workflow_id: number | null
+  created_at: string | null
+  updated_at: string | null
+}
+
+export interface AnalysisPlanDetail extends AnalysisPlanSummary {}
+
+export interface GenerateAnalysisPlanPayload {
+  question: string
+  question_weight: AnalysisQuestionWeight
+  metric_candidates: MetricCandidate[]
+  conflicts: ConflictItem[]
+  review_requirements: ReviewRequirement[]
+  evidence_bundle: AnalysisEvidenceBundle
+  result_service_plan: ResultServicePlan
+}
+
+export interface AnalysisPlanListResponse {
+  items: AnalysisPlanSummary[]
+  total: number
+}
+
+export interface ReviewAnalysisPlanPayload {
+  action: 'CONFIRM' | 'REJECT'
+  note?: string | null
+}
+
 interface ApiEnvelope<T> {
   code: string
   message: string
@@ -2641,6 +2761,18 @@ export const GenesisApi = {
 
   switchContext: async (payload: { tenant_id: number; project_id: number }): Promise<SwitchContextResponse> =>
     unwrap(api.post<ApiEnvelope<SwitchContextResponse>>('/api/v1/auth/context/switch', payload)),
+
+  generateAnalysisPlan: async (payload: GenerateAnalysisPlanPayload): Promise<AnalysisPlanSummary> =>
+    unwrap(api.post<ApiEnvelope<AnalysisPlanSummary>>('/api/v1/analysis-planner/plans/generate', payload)),
+
+  getAnalysisPlans: async (): Promise<AnalysisPlanListResponse> =>
+    unwrap(api.get<ApiEnvelope<AnalysisPlanListResponse>>('/api/v1/analysis-planner/plans')),
+
+  getAnalysisPlanDetail: async (planId: number): Promise<AnalysisPlanDetail> =>
+    unwrap(api.get<ApiEnvelope<AnalysisPlanDetail>>(`/api/v1/analysis-planner/plans/${planId}`)),
+
+  reviewAnalysisPlan: async (planId: number, payload: ReviewAnalysisPlanPayload): Promise<AnalysisPlanDetail> =>
+    unwrap(api.post<ApiEnvelope<AnalysisPlanDetail>>(`/api/v1/analysis-planner/plans/${planId}/review-actions`, payload)),
 
   getEvents: async (): Promise<TrackingEvent[]> =>
     unwrap(api.get<ApiEnvelope<TrackingEvent[]>>('/api/v1/events/')),
