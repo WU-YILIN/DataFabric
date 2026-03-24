@@ -32,6 +32,7 @@ import { useSession } from './auth/session'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Governance from './pages/Governance'
+import MetricAnalysisPlanner from './pages/MetricAnalysisPlanner'
 import Events from './pages/Events'
 import AISpecCenter from './pages/AISpecCenter'
 import AIDedupReuseCenter from './pages/AIDedupReuseCenter'
@@ -71,6 +72,7 @@ const primaryFlow: SidebarEntry[] = [
   { to: '/flink-ops', icon: Activity, zh: 'Flink 运维', en: 'Flink Ops' },
   { to: '/events', icon: Database, zh: '事件', en: 'Events' },
   { to: '/governance', icon: ShieldCheck, zh: '治理', en: 'Governance' },
+  { to: '/analysis-planner', icon: Scale, zh: '分析规划', en: 'Analysis Planner' },
   { to: '/pipelines', icon: Workflow, zh: '管道', en: 'Pipelines' },
   { to: '/data-quality', icon: FlaskConical, zh: '质量', en: 'Data Quality' },
   { to: '/scheduler', icon: CalendarClock, zh: '调度', en: 'Scheduler' },
@@ -260,6 +262,7 @@ function App() {
             <Routes key={contextVersion}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/governance" element={<Governance />} />
+              <Route path="/analysis-planner" element={<MetricAnalysisPlanner />} />
               <Route path="/policy-center" element={<PolicyRuleCenterPage />} />
               <Route path="/release-center" element={<ReleaseChangeManagement />} />
               <Route path="/reports" element={<CustomReportsDashboardBuilder />} />

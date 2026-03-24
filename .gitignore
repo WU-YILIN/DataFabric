@@ -35,3 +35,6 @@ logs/
 build/
 tmp/
 temp/
+
+# Local worktrees
+.worktrees/

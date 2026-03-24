@@ -28,6 +28,7 @@ from src.api.v1.endpoints import (
     settings as settings_router,
     monitoring,
     collaboration,
+    analysis_planner,
     knowledge,
     cost,
     sandbox,
@@ -116,6 +117,7 @@ app.include_router(infrastructure.router, prefix="/api/v1/infrastructure", tags=
 app.include_router(settings_router.router, prefix="/api/v1/settings", tags=["settings"])
 app.include_router(monitoring.router, prefix="/api/v1/monitoring", tags=["monitoring"])
 app.include_router(collaboration.router, prefix="/api/v1/collaboration", tags=["collaboration"])
+app.include_router(analysis_planner.router, prefix="/api/v1/analysis-planner", tags=["analysis-planner"])
 app.include_router(knowledge.router, prefix="/api/v1/knowledge", tags=["knowledge"])
 app.include_router(cost.router, prefix="/api/v1/cost", tags=["cost"])
 app.include_router(sandbox.router, prefix="/api/v1/sandbox", tags=["sandbox"])
@@ -257,9 +259,9 @@ async def _ensure_demo_user(session, tenant_id: int, project_id: int) -> None:
 async def startup_event():
     global pipeline_sync_stop_event, pipeline_sync_task
     logger.info("Starting up Genesis Backend", environment=settings.ENVIRONMENT)
-    await _run_sqlite_compat_migrations()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await _run_sqlite_compat_migrations()
     async with async_session_factory() as session:
         tenant = await _ensure_demo_tenant(session)
         project = await _ensure_demo_project(session, tenant.id)
