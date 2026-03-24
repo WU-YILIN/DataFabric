@@ -11,10 +11,19 @@ from src.domain.analysis_planner import (
 def test_normalize_question_extracts_metric_dimensions_and_missing_time_scope():
     normalized = normalize_question("为什么最近华东新客转化掉了？")
 
-    assert normalized.metric_phrase == "新客转化"
+    assert normalized.primary_metric_phrase == "新客转化"
+    assert normalized.metric_phrases == ("新客转化",)
     assert normalized.dimensions == ("华东",)
     assert normalized.time_scope is None
     assert normalized.missing_time_scope is True
+
+
+def test_normalize_question_keeps_primary_metric_without_losing_secondary_metrics():
+    normalized = normalize_question("为什么华东新客转化和投放成本一起掉了？")
+
+    assert normalized.primary_metric_phrase == "新客转化"
+    assert normalized.metric_phrases == ("新客转化", "投放成本")
+    assert normalized.metric_domains == ("acquisition", "marketing")
 
 
 def test_business_definition_mismatch_routes_to_approver_and_escalates_core_metrics():
@@ -31,6 +40,17 @@ def test_business_definition_mismatch_routes_to_approver_and_escalates_core_metr
     )
 
 
+def test_business_definition_mismatch_routes_to_approver_without_escalation_by_default():
+    route = route_conflict(ConflictType.BUSINESS_DEFINITION_MISMATCH)
+
+    assert route == ConflictRoute(
+        conflict_type=ConflictType.BUSINESS_DEFINITION_MISMATCH,
+        owner_role="APPROVER",
+        escalation_roles=(),
+        review_required=True,
+    )
+
+
 def test_field_fact_mismatch_routes_to_editor_and_escalates_cross_source_access():
     route = route_conflict(
         ConflictType.FIELD_FACT_MISMATCH,
@@ -41,6 +61,17 @@ def test_field_fact_mismatch_routes_to_editor_and_escalates_cross_source_access(
         conflict_type=ConflictType.FIELD_FACT_MISMATCH,
         owner_role="EDITOR",
         escalation_roles=("ADMIN",),
+        review_required=True,
+    )
+
+
+def test_field_fact_mismatch_routes_to_editor_without_escalation_by_default():
+    route = route_conflict(ConflictType.FIELD_FACT_MISMATCH)
+
+    assert route == ConflictRoute(
+        conflict_type=ConflictType.FIELD_FACT_MISMATCH,
+        owner_role="EDITOR",
+        escalation_roles=(),
         review_required=True,
     )
 
@@ -70,13 +101,31 @@ def test_high_cost_review_routes_to_approver():
 def test_question_classification_marks_cross_domain_core_metric_as_heavy_review_required():
     normalized = normalize_question("为什么华东新客转化和投放成本一起掉了？")
 
-    classification = classify_question(
-        normalized,
-        is_core_metric=True,
-        cross_domain=True,
-    )
+    classification = classify_question(normalized, core_metrics=("新客转化",))
 
     assert classification.weight is QuestionWeight.HEAVY
     assert classification.review_required is True
     assert classification.cross_domain is True
     assert classification.is_core_metric is True
+
+
+def test_question_classification_stays_light_without_review_for_single_domain_scoped_question():
+    normalized = normalize_question("为什么本周华东投放成本掉了？")
+
+    classification = classify_question(normalized)
+
+    assert classification.weight is QuestionWeight.LIGHT
+    assert classification.review_required is False
+    assert classification.cross_domain is False
+    assert classification.is_core_metric is False
+
+
+def test_question_classification_marks_missing_time_only_as_review_required_but_light():
+    normalized = normalize_question("为什么最近华东投放成本掉了？")
+
+    classification = classify_question(normalized)
+
+    assert classification.weight is QuestionWeight.LIGHT
+    assert classification.review_required is True
+    assert classification.cross_domain is False
+    assert classification.is_core_metric is False

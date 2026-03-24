@@ -52,9 +52,10 @@ def route_conflict(
 def classify_question(
     normalized: NormalizedQuestion,
     *,
-    is_core_metric: bool = False,
-    cross_domain: bool = False,
+    core_metrics: tuple[str, ...] = (),
 ) -> QuestionClassification:
+    is_core_metric = any(metric in core_metrics for metric in normalized.metric_phrases)
+    cross_domain = len(set(normalized.metric_domains)) > 1
     review_required = cross_domain or is_core_metric or normalized.missing_time_scope
     weight = QuestionWeight.HEAVY if cross_domain or is_core_metric else QuestionWeight.LIGHT
     return QuestionClassification(

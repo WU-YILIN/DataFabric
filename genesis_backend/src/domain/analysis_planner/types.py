@@ -22,7 +22,9 @@ class QuestionWeight(StrEnum):
 @dataclass(frozen=True)
 class NormalizedQuestion:
     raw_question: str
-    metric_phrase: str | None
+    primary_metric_phrase: str | None
+    metric_phrases: tuple[str, ...]
+    metric_domains: tuple[str, ...]
     dimensions: tuple[str, ...]
     time_scope: str | None
     missing_time_scope: bool
