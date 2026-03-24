@@ -23,6 +23,7 @@ from src.infrastructure.database.models.audit import AuditLog
 from src.infrastructure.database.models.pipeline import Pipeline, PipelineStatus
 from src.infrastructure.database.models.pipeline_history import PipelineStatusHistory
 from src.infrastructure.database.models.governance_check import GovernanceCheck
+from src.infrastructure.database.models.governance_decision_record import GovernanceDecisionRecord
 from src.infrastructure.database.models.alert import Alert
 from src.infrastructure.database.models.alert_action_history import AlertActionHistory
 from src.infrastructure.database.models.user import User, UserTenantRole, UserProjectRole
@@ -45,6 +46,8 @@ from src.infrastructure.database.models.data_product_version import DataProductV
 from src.infrastructure.database.models.data_product_subscription import DataProductSubscription
 from src.infrastructure.database.models.incident_case import IncidentCase
 from src.infrastructure.database.models.incident_timeline_entry import IncidentTimelineEntry
+from src.infrastructure.database.models.inference_candidate import InferenceCandidate
+from src.infrastructure.database.models.observation_source_profile import ObservationSourceProfile
 from src.infrastructure.database.models.collaboration_workflow import CollaborationWorkflow
 from src.infrastructure.database.models.collaboration_task import CollaborationTask
 from src.infrastructure.database.models.collaboration_comment import CollaborationComment
@@ -53,8 +56,32 @@ from src.infrastructure.database.models.analysis_plan import AnalysisPlan
 from src.infrastructure.database.models.knowledge_document import KnowledgeDocument
 from src.infrastructure.database.models.knowledge_document_version import KnowledgeDocumentVersion
 from src.infrastructure.database.models.knowledge_document_comment import KnowledgeDocumentComment
+from src.infrastructure.database.models.contract_artifact import ContractArtifact
+from src.infrastructure.database.models.connector_definition import ConnectorDefinition
+from src.infrastructure.database.models.external_data_source import ExternalDataSource
+from src.infrastructure.database.models.source_asset import SourceAsset
+from src.infrastructure.database.models.source_asset_snapshot import SourceAssetSnapshot
+from src.infrastructure.database.models.source_field import SourceField
+from src.infrastructure.database.models.source_field_profile import SourceFieldProfile
+from src.infrastructure.database.models.source_candidate import SourceCandidate
+from src.infrastructure.database.models.source_change_event import SourceChangeEvent
+from src.infrastructure.database.models.source_instance import SourceInstance
+from src.infrastructure.database.models.source_sync_run import SourceSyncRun
+from src.infrastructure.database.models.source_telemetry_sample import SourceTelemetrySample
+from src.infrastructure.database.models.semantic_candidate import SemanticCandidate
+from src.infrastructure.database.models.query_intent import QueryIntent
+from src.infrastructure.database.models.query_plan import QueryPlan
+from src.infrastructure.database.models.query_run import QueryRun
+from src.infrastructure.database.models.execution_stage import ExecutionStage
+from src.infrastructure.database.models.executed_sql import ExecutedSQL
+from src.infrastructure.database.models.materialization_artifact import MaterializationArtifact
 from src.infrastructure.database.models.sandbox_experiment import SandboxExperiment
 from src.infrastructure.database.models.sandbox_experiment_run import SandboxExperimentRun
+from src.infrastructure.database.models.schema_field_mapping import (
+    SchemaFieldMapping,
+    FieldMappingStatus,
+    FieldCastType,
+)
 
 __all__ = [
     "Base",
@@ -83,6 +110,7 @@ __all__ = [
     "PipelineStatus",
     "PipelineStatusHistory",
     "GovernanceCheck",
+    "GovernanceDecisionRecord",
     "Alert",
     "AlertActionHistory",
     "User",
@@ -107,6 +135,8 @@ __all__ = [
     "DataProductSubscription",
     "IncidentCase",
     "IncidentTimelineEntry",
+    "InferenceCandidate",
+    "ObservationSourceProfile",
     "CollaborationWorkflow",
     "CollaborationTask",
     "CollaborationComment",
@@ -115,6 +145,28 @@ __all__ = [
     "KnowledgeDocument",
     "KnowledgeDocumentVersion",
     "KnowledgeDocumentComment",
+    "ContractArtifact",
+    "ConnectorDefinition",
+    "ExternalDataSource",
+    "SourceInstance",
+    "SourceAsset",
+    "SourceAssetSnapshot",
+    "SourceField",
+    "SourceFieldProfile",
+    "SourceChangeEvent",
+    "SourceCandidate",
+    "SemanticCandidate",
+    "SourceTelemetrySample",
+    "SourceSyncRun",
+    "QueryIntent",
+    "QueryPlan",
+    "QueryRun",
+    "ExecutionStage",
+    "ExecutedSQL",
+    "MaterializationArtifact",
     "SandboxExperiment",
     "SandboxExperimentRun",
+    "SchemaFieldMapping",
+    "FieldMappingStatus",
+    "FieldCastType",
 ]

@@ -27,6 +27,7 @@ import {
   type SchedulerRunDetailResponse,
 } from '../services/api'
 import { useLanguage } from '../i18n/language'
+import { useBrowserErrorAlert } from '../hooks/useBrowserErrorAlert'
 
 type NodeForm = {
   node_key: string
@@ -126,6 +127,7 @@ const Scheduler = () => {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  useBrowserErrorAlert(error)
   const [notice, setNotice] = useState<string | null>(null)
 
   const [selectedDagId, setSelectedDagId] = useState<number | null>(null)
@@ -527,9 +529,6 @@ const Scheduler = () => {
         </div>
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700 text-sm">{error}</div>
-      )}
       {notice && (
         <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700 text-sm">
           {notice}
@@ -857,7 +856,6 @@ const Scheduler = () => {
                             {nodeRun.node_key} (attempt {nodeRun.attempt})
                           </p>
                           <p className="text-xs text-slate-500 mt-1">{nodeRun.log_summary || '-'}</p>
-                          {nodeRun.error_message && <p className="text-xs text-rose-600 mt-1">{nodeRun.error_message}</p>}
                         </div>
                         <div className="flex items-center gap-2">
                           <span

@@ -10,6 +10,8 @@ import {
   type ReleaseExecuteResponse,
   type ReleaseOverviewResponse,
 } from '../services/api'
+import { useBrowserErrorAlert } from '../hooks/useBrowserErrorAlert'
+import { useLanguage } from '../i18n/language'
 
 const CHANGE_TYPE_OPTIONS = [
   'EVENT_CHANGE',
@@ -58,6 +60,9 @@ const availableActions = (status: string): string[] => {
 const jsonPretty = (value: unknown): string => JSON.stringify(value ?? {}, null, 2)
 
 const ReleaseChangeManagement = () => {
+  const { locale } = useLanguage()
+  const isZh = locale === 'zh-CN'
+  const L = (cn: string, en: string) => (isZh ? cn : en)
   const [overview, setOverview] = useState<ReleaseOverviewResponse | null>(null)
   const [listResp, setListResp] = useState<ReleaseChangeListResponse | null>(null)
   const [detail, setDetail] = useState<ReleaseChangeDetailResponse | null>(null)
@@ -98,18 +103,19 @@ const ReleaseChangeManagement = () => {
   const [loading, setLoading] = useState(false)
   const [operating, setOperating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  useBrowserErrorAlert(error)
   const [message, setMessage] = useState<string | null>(null)
 
   const parseJsonObject = (text: string, field: string): Record<string, unknown> | null => {
     try {
       const value = JSON.parse(text)
       if (!value || typeof value !== 'object' || Array.isArray(value)) {
-        setError(`${field} must be a JSON object`)
+        setError(`${field} ${L('必须是 JSON 对象', 'must be a JSON object')}`)
         return null
       }
       return value as Record<string, unknown>
     } catch {
-      setError(`${field} must be valid JSON`)
+      setError(`${field} ${L('必须是合法 JSON', 'must be valid JSON')}`)
       return null
     }
   }
@@ -155,7 +161,7 @@ const ReleaseChangeManagement = () => {
       }
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
-      setError(msg ?? 'Failed to load release center')
+      setError(msg ?? L('加载发布中心失败', 'Failed to load release center'))
     } finally {
       setLoading(false)
     }
@@ -183,7 +189,7 @@ const ReleaseChangeManagement = () => {
       await loadChanges()
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
-      setError(msg ?? 'Failed to load changes')
+      setError(msg ?? L('加载变更失败', 'Failed to load changes'))
     } finally {
       setLoading(false)
     }
@@ -219,7 +225,7 @@ const ReleaseChangeManagement = () => {
         manual_review_note: createForm.manual_review_note.trim() || undefined,
       })
 
-      setMessage(`Created change #${created.id}`)
+      setMessage(`${L('变更已创建', 'Created change')} #${created.id}`)
       setCreateForm((prev) => ({
         ...prev,
         source_id: '',
@@ -231,7 +237,7 @@ const ReleaseChangeManagement = () => {
       setSelectedChangeId(created.id)
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
-      setError(msg ?? 'Create change failed')
+      setError(msg ?? L('创建变更失败', 'Create change failed'))
     } finally {
       setOperating(false)
     }
@@ -244,7 +250,7 @@ const ReleaseChangeManagement = () => {
     setMessage(null)
     try {
       if (action === 'SCHEDULE' && !actionForm.scheduled_at.trim()) {
-        setError('scheduled_at is required for SCHEDULE action')
+        setError(L('SCHEDULE 操作必须填写 scheduled_at', 'scheduled_at is required for SCHEDULE action'))
         return
       }
 
@@ -288,8 +294,8 @@ const ReleaseChangeManagement = () => {
     <div className="max-w-7xl mx-auto space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Release & Change Management</h2>
-          <p className="text-slate-500 text-base">Track approvals, execute release windows, and manage rollback with full audit history.</p>
+          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{L('???????', 'Release & Change Management')}</h2>
+          <p className="text-slate-500 text-base">{L('??????????????????????????', 'Track approvals, execute release windows, and manage rollback with full audit history.')}</p>
         </div>
         <button
           onClick={() => void refreshAll()}
@@ -297,39 +303,37 @@ const ReleaseChangeManagement = () => {
           className="rounded-xl bg-slate-900 text-white px-4 py-2.5 font-medium hover:bg-slate-800 disabled:opacity-60 flex items-center gap-2"
         >
           <RefreshCw size={16} />
-          Refresh
+          {L('??', 'Refresh')}
         </button>
       </header>
-
-      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
       {message && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>}
 
       <section className="grid grid-cols-2 md:grid-cols-7 gap-3">
-        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">Total</p><p className="text-2xl font-bold text-slate-900">{overview?.summary.total_changes ?? 0}</p></div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">Pending</p><p className="text-2xl font-bold text-sky-700">{overview?.summary.pending_approval ?? 0}</p></div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">In Progress</p><p className="text-2xl font-bold text-indigo-700">{overview?.summary.in_progress ?? 0}</p></div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">Completed</p><p className="text-2xl font-bold text-emerald-700">{overview?.summary.completed ?? 0}</p></div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">Failed</p><p className="text-2xl font-bold text-rose-700">{overview?.summary.failed ?? 0}</p></div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">Rolled Back</p><p className="text-2xl font-bold text-amber-700">{overview?.summary.rolled_back ?? 0}</p></div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">High Risk Open</p><p className="text-2xl font-bold text-rose-700">{overview?.summary.high_risk_open ?? 0}</p></div>
+        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">{L('??', 'Total')}</p><p className="text-2xl font-bold text-slate-900">{overview?.summary.total_changes ?? 0}</p></div>
+        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">{L('???', 'Pending')}</p><p className="text-2xl font-bold text-sky-700">{overview?.summary.pending_approval ?? 0}</p></div>
+        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">{L('???', 'In Progress')}</p><p className="text-2xl font-bold text-indigo-700">{overview?.summary.in_progress ?? 0}</p></div>
+        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">{L('???', 'Completed')}</p><p className="text-2xl font-bold text-emerald-700">{overview?.summary.completed ?? 0}</p></div>
+        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">{L('??', 'Failed')}</p><p className="text-2xl font-bold text-rose-700">{overview?.summary.failed ?? 0}</p></div>
+        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">{L('???', 'Rolled Back')}</p><p className="text-2xl font-bold text-amber-700">{overview?.summary.rolled_back ?? 0}</p></div>
+        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">{L('??????', 'High Risk Open')}</p><p className="text-2xl font-bold text-rose-700">{overview?.summary.high_risk_open ?? 0}</p></div>
       </section>
 
       <form onSubmit={onApplyFilters} className="glass rounded-3xl border border-slate-200/60 p-4">
         <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-          <input value={filters.q} onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value }))} placeholder="search title/source/requester" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
+          <input value={filters.q} onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value }))} placeholder={L('???????????', 'search title/source/requester')} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
           <select value={filters.change_type} onChange={(e) => setFilters((prev) => ({ ...prev, change_type: e.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">{changeTypeOptions.map((item) => <option key={item} value={item}>{item}</option>)}</select>
           <select value={filters.status} onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">{statusOptions.map((item) => <option key={item} value={item}>{item}</option>)}</select>
           <select value={filters.priority} onChange={(e) => setFilters((prev) => ({ ...prev, priority: e.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">{priorityOptions.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-          <input value={filters.source_type} onChange={(e) => setFilters((prev) => ({ ...prev, source_type: e.target.value }))} placeholder="source type" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
-          <input value={filters.requested_by} onChange={(e) => setFilters((prev) => ({ ...prev, requested_by: e.target.value }))} placeholder="requested by" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
-          <button type="submit" className="rounded-xl bg-cyan-600 text-white px-4 py-2 text-sm font-semibold">Apply Filters</button>
+          <input value={filters.source_type} onChange={(e) => setFilters((prev) => ({ ...prev, source_type: e.target.value }))} placeholder={L('????', 'source type')} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
+          <input value={filters.requested_by} onChange={(e) => setFilters((prev) => ({ ...prev, requested_by: e.target.value }))} placeholder={L('???', 'requested by')} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
+          <button type="submit" className="rounded-xl bg-cyan-600 text-white px-4 py-2 text-sm font-semibold">{L('????', 'Apply Filters')}</button>
         </div>
       </form>
 
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <div className="space-y-4">
           <div className="glass rounded-3xl border border-slate-200/60 p-4">
-            <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2"><Clock3 size={16} /> Change Orders</h3>
+            <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2"><Clock3 size={16} /> {L('???', 'Change Orders')}</h3>
             <div className="space-y-2 max-h-[28rem] overflow-auto">
               {(listResp?.items ?? []).map((item) => (
                 <button key={item.id} onClick={() => setSelectedChangeId(item.id)} className={clsx('w-full text-left rounded-xl border px-3 py-2 transition', selectedChangeId === item.id ? 'border-cyan-300 bg-cyan-50/70' : 'border-slate-200 bg-white hover:bg-slate-50')}>
@@ -346,35 +350,35 @@ const ReleaseChangeManagement = () => {
                   </div>
                 </button>
               ))}
-              {(listResp?.items.length ?? 0) === 0 && <p className="text-sm text-slate-500">No change requests found.</p>}
+              {(listResp?.items.length ?? 0) === 0 && <p className="text-sm text-slate-500">{L('????????', 'No change requests found.')}</p>}
             </div>
           </div>
 
           <form onSubmit={onCreateChange} className="glass rounded-3xl border border-slate-200/60 p-4 space-y-2">
-            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2"><ShieldAlert size={16} /> New Change Request</h3>
+            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2"><ShieldAlert size={16} /> {L('??????', 'New Change Request')}</h3>
             <div className="grid grid-cols-2 gap-2">
               <select value={createForm.change_type} onChange={(e) => setCreateForm((prev) => ({ ...prev, change_type: e.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">{CHANGE_TYPE_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}</select>
               <select value={createForm.priority} onChange={(e) => setCreateForm((prev) => ({ ...prev, priority: e.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">{PRIORITY_OPTIONS.map((item) => <option key={item} value={item}>{item}</option>)}</select>
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <input value={createForm.source_type} onChange={(e) => setCreateForm((prev) => ({ ...prev, source_type: e.target.value }))} placeholder="source type" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
-              <input value={createForm.source_id} onChange={(e) => setCreateForm((prev) => ({ ...prev, source_id: e.target.value }))} placeholder="source id" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
+              <input value={createForm.source_type} onChange={(e) => setCreateForm((prev) => ({ ...prev, source_type: e.target.value }))} placeholder={L('????', 'source type')} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
+              <input value={createForm.source_id} onChange={(e) => setCreateForm((prev) => ({ ...prev, source_id: e.target.value }))} placeholder={L('?? ID', 'source id')} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
             </div>
-            <input value={createForm.title} onChange={(e) => setCreateForm((prev) => ({ ...prev, title: e.target.value }))} placeholder="title" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
-            <textarea value={createForm.description} onChange={(e) => setCreateForm((prev) => ({ ...prev, description: e.target.value }))} rows={2} placeholder="description" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
+            <input value={createForm.title} onChange={(e) => setCreateForm((prev) => ({ ...prev, title: e.target.value }))} placeholder={L('??', 'title')} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
+            <textarea value={createForm.description} onChange={(e) => setCreateForm((prev) => ({ ...prev, description: e.target.value }))} rows={2} placeholder={L('??', 'description')} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
             <textarea value={createForm.impact_scope_text} onChange={(e) => setCreateForm((prev) => ({ ...prev, impact_scope_text: e.target.value }))} rows={4} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono" />
             <textarea value={createForm.before_payload_text} onChange={(e) => setCreateForm((prev) => ({ ...prev, before_payload_text: e.target.value }))} rows={4} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono" />
             <textarea value={createForm.after_payload_text} onChange={(e) => setCreateForm((prev) => ({ ...prev, after_payload_text: e.target.value }))} rows={4} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono" />
             <textarea value={createForm.release_plan_text} onChange={(e) => setCreateForm((prev) => ({ ...prev, release_plan_text: e.target.value }))} rows={3} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono" />
             <textarea value={createForm.rollback_plan_text} onChange={(e) => setCreateForm((prev) => ({ ...prev, rollback_plan_text: e.target.value }))} rows={3} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono" />
-            <textarea value={createForm.manual_review_note} onChange={(e) => setCreateForm((prev) => ({ ...prev, manual_review_note: e.target.value }))} rows={2} placeholder="manual review note (optional)" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
-            <button type="submit" disabled={operating} className="w-full rounded-xl bg-cyan-600 text-white px-3 py-2 text-sm font-semibold disabled:opacity-60">Create Change</button>
+            <textarea value={createForm.manual_review_note} onChange={(e) => setCreateForm((prev) => ({ ...prev, manual_review_note: e.target.value }))} rows={2} placeholder={L('??????????', 'manual review note (optional)')} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
+            <button type="submit" disabled={operating} className="w-full rounded-xl bg-cyan-600 text-white px-3 py-2 text-sm font-semibold disabled:opacity-60">{L('????', 'Create Change')}</button>
           </form>
         </div>
 
         <div className="xl:col-span-2 space-y-4">
           {!detail ? (
-            <div className="glass rounded-3xl border border-slate-200/60 p-8 text-sm text-slate-500">Select one change request to view details.</div>
+            <div className="glass rounded-3xl border border-slate-200/60 p-8 text-sm text-slate-500">{L('?????????????', 'Select one change request to view details.')}</div>
           ) : (
             <div className="glass rounded-3xl border border-slate-200/60 p-4 space-y-3">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -390,46 +394,46 @@ const ReleaseChangeManagement = () => {
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                <div className="rounded-lg border border-slate-200 p-2"><p className="text-slate-500">Priority</p><p className="font-semibold text-slate-800">{detail.change.priority}</p></div>
-                <div className="rounded-lg border border-slate-200 p-2"><p className="text-slate-500">Approver Role</p><p className="font-semibold text-slate-800">{detail.change.current_approver_role ?? '-'}</p></div>
-                <div className="rounded-lg border border-slate-200 p-2"><p className="text-slate-500">Approved By</p><p className="font-semibold text-slate-800">{detail.change.approved_by ?? '-'}</p></div>
-                <div className="rounded-lg border border-slate-200 p-2"><p className="text-slate-500">Rejected By</p><p className="font-semibold text-slate-800">{detail.change.rejected_by ?? '-'}</p></div>
+                <div className="rounded-lg border border-slate-200 p-2"><p className="text-slate-500">{L('???', 'Priority')}</p><p className="font-semibold text-slate-800">{detail.change.priority}</p></div>
+                <div className="rounded-lg border border-slate-200 p-2"><p className="text-slate-500">{L('????', 'Approver Role')}</p><p className="font-semibold text-slate-800">{detail.change.current_approver_role ?? '-'}</p></div>
+                <div className="rounded-lg border border-slate-200 p-2"><p className="text-slate-500">{L('???', 'Approved By')}</p><p className="font-semibold text-slate-800">{detail.change.approved_by ?? '-'}</p></div>
+                <div className="rounded-lg border border-slate-200 p-2"><p className="text-slate-500">{L('???', 'Rejected By')}</p><p className="font-semibold text-slate-800">{detail.change.rejected_by ?? '-'}</p></div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <h4 className="text-sm font-semibold text-slate-800 mb-2">Impact Scope</h4>
+                  <h4 className="text-sm font-semibold text-slate-800 mb-2">{L('????', 'Impact Scope')}</h4>
                   <pre className="text-xs text-slate-700 whitespace-pre-wrap break-all bg-slate-50 border border-slate-200 rounded-xl p-3">{jsonPretty(detail.change.impact_scope)}</pre>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <h4 className="text-sm font-semibold text-slate-800 mb-2">Risk Assessment</h4>
+                  <h4 className="text-sm font-semibold text-slate-800 mb-2">{L('????', 'Risk Assessment')}</h4>
                   <pre className="text-xs text-slate-700 whitespace-pre-wrap break-all bg-slate-50 border border-slate-200 rounded-xl p-3">{jsonPretty(detail.change.risk_assessment)}</pre>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <h4 className="text-sm font-semibold text-slate-800 mb-2">Diff Payload</h4>
+                  <h4 className="text-sm font-semibold text-slate-800 mb-2">{L('????', 'Diff Payload')}</h4>
                   <pre className="text-xs text-slate-700 whitespace-pre-wrap break-all bg-slate-50 border border-slate-200 rounded-xl p-3">{jsonPretty(detail.change.diff_payload)}</pre>
                 </div>
                 <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                  <h4 className="text-sm font-semibold text-slate-800 mb-2">Release / Rollback Plan</h4>
+                  <h4 className="text-sm font-semibold text-slate-800 mb-2">{L('?? / ????', 'Release / Rollback Plan')}</h4>
                   <pre className="text-xs text-slate-700 whitespace-pre-wrap break-all bg-slate-50 border border-slate-200 rounded-xl p-3">{jsonPretty({ release_plan: detail.change.release_plan, rollback_plan: detail.change.rollback_plan })}</pre>
                 </div>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4 space-y-2">
-                <h4 className="text-sm font-semibold text-slate-800 flex items-center gap-2"><CheckCircle2 size={15} /> Operate Change</h4>
-                <textarea value={actionForm.note} onChange={(e) => setActionForm((prev) => ({ ...prev, note: e.target.value }))} rows={2} placeholder="action note" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+                <h4 className="text-sm font-semibold text-slate-800 flex items-center gap-2"><CheckCircle2 size={15} /> {L('??????', 'Operate Change')}</h4>
+                <textarea value={actionForm.note} onChange={(e) => setActionForm((prev) => ({ ...prev, note: e.target.value }))} rows={2} placeholder={L('????', 'action note')} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                   <input type="datetime-local" value={actionForm.scheduled_at} onChange={(e) => setActionForm((prev) => ({ ...prev, scheduled_at: e.target.value }))} className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                  <input value={actionForm.failure_reason} onChange={(e) => setActionForm((prev) => ({ ...prev, failure_reason: e.target.value }))} placeholder="failure reason for execute simulate" className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
+                  <input value={actionForm.failure_reason} onChange={(e) => setActionForm((prev) => ({ ...prev, failure_reason: e.target.value }))} placeholder={L('????????', 'failure reason for execute simulate')} className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
                 </div>
                 <div className="flex flex-wrap items-center gap-4 text-sm text-slate-700">
                   <label className="inline-flex items-center gap-2">
                     <input type="checkbox" checked={actionForm.simulate_failure} onChange={(e) => setActionForm((prev) => ({ ...prev, simulate_failure: e.target.checked }))} />
-                    simulate execution failure
+                    {L('??????', 'simulate execution failure')}
                   </label>
                   <label className="inline-flex items-center gap-2">
                     <input type="checkbox" checked={actionForm.trigger_rollback} onChange={(e) => setActionForm((prev) => ({ ...prev, trigger_rollback: e.target.checked }))} />
-                    auto rollback on failure
+                    {L('???????', 'auto rollback on failure')}
                   </label>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -438,12 +442,12 @@ const ReleaseChangeManagement = () => {
                       {action}
                     </button>
                   ))}
-                  {availableActions(detail.change.status).length === 0 && <p className="text-sm text-slate-500">No operation available for current status.</p>}
+                  {availableActions(detail.change.status).length === 0 && <p className="text-sm text-slate-500">{L('???????????', 'No operation available for current status.')}</p>}
                 </div>
               </div>
 
               <div className="rounded-2xl border border-slate-200 bg-white p-4">
-                <h4 className="text-sm font-semibold text-slate-800 mb-2">Action History</h4>
+                <h4 className="text-sm font-semibold text-slate-800 mb-2">{L('????', 'Action History')}</h4>
                 <div className="space-y-2 max-h-64 overflow-auto">
                   {detail.history.map((item) => (
                     <div key={item.id} className="rounded-xl border border-slate-200 p-3">
@@ -456,7 +460,7 @@ const ReleaseChangeManagement = () => {
                       <pre className="text-xs text-slate-700 whitespace-pre-wrap break-all bg-slate-50 border border-slate-200 rounded-lg p-2 mt-2">{jsonPretty(item.payload)}</pre>
                     </div>
                   ))}
-                  {detail.history.length === 0 && <p className="text-sm text-slate-500">No history records.</p>}
+                  {detail.history.length === 0 && <p className="text-sm text-slate-500">{L('???????', 'No history records.')}</p>}
                 </div>
               </div>
             </div>

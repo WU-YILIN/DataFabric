@@ -11,6 +11,7 @@ import {
   type PolicyRuleListResponse,
   type PolicyTemplateItem,
 } from '../services/api'
+import { useBrowserErrorAlert } from '../hooks/useBrowserErrorAlert'
 
 const PolicyRuleCenterPage = () => {
   const navigate = useNavigate()
@@ -73,6 +74,7 @@ const PolicyRuleCenterPage = () => {
   const [loading, setLoading] = useState(false)
   const [operating, setOperating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  useBrowserErrorAlert(error)
   const [message, setMessage] = useState<string | null>(null)
 
   const parseJsonObject = (text: string): Record<string, unknown> | null => {
@@ -343,8 +345,6 @@ const PolicyRuleCenterPage = () => {
           Refresh
         </button>
       </header>
-
-      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
       {message && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>}
 
       <section className="grid grid-cols-2 md:grid-cols-6 gap-3">

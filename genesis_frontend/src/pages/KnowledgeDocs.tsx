@@ -1,1030 +1,488 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { clsx } from 'clsx'
-import {
-  Archive,
-  BookCopy,
-  FileText,
-  History,
-  Link2,
-  MessageSquare,
-  RefreshCw,
-  RotateCcw,
-  Search,
-  Send,
-  UploadCloud,
-} from 'lucide-react'
+import { Archive, BookOpenText, Plus, RefreshCw, Search, Send } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 import {
   GenesisApi,
+  type KnowledgeDocumentCommentItem,
   type KnowledgeDocumentDetailResponse,
   type KnowledgeDocumentItem,
   type KnowledgeDocumentListResponse,
   type KnowledgeOverviewResponse,
-  type KnowledgeTemplateItem,
 } from '../services/api'
-import { useLanguage } from '../i18n/language'
 
-const statusClass: Record<string, string> = {
-  DRAFT: 'bg-amber-100 text-amber-700',
-  PUBLISHED: 'bg-emerald-100 text-emerald-700',
-  ARCHIVED: 'bg-slate-200 text-slate-700',
-}
+const PAGE_SIZE = 12
 
 type CreateFormState = {
-  template_key: string
-  doc_type: string
-  module: string
   title: string
   summary: string
   content: string
-  format: string
+  module: string
+  docType: string
+  knowledgeLevel: string
   status: string
   tags: string
-  related_source_type: string
-  related_source_id: string
-  related_label: string
-  meta_payload_text: string
-  change_note: string
 }
 
-type EditFormState = {
-  title: string
-  summary: string
-  content: string
-  tags: string
-  related_objects_text: string
-  meta_payload_text: string
-  change_note: string
-}
-
-const defaultCreateForm: CreateFormState = {
-  template_key: '',
-  doc_type: 'RUNBOOK',
-  module: 'MONITORING',
+const DEFAULT_FORM: CreateFormState = {
   title: '',
   summary: '',
   content: '',
-  format: 'MARKDOWN',
+  module: 'GENERAL',
+  docType: 'RUNBOOK',
+  knowledgeLevel: 'BRIEF',
   status: 'DRAFT',
   tags: '',
-  related_source_type: '',
-  related_source_id: '',
-  related_label: '',
-  meta_payload_text: '{}',
-  change_note: '',
 }
 
-const defaultEditForm: EditFormState = {
-  title: '',
-  summary: '',
-  content: '',
-  tags: '',
-  related_objects_text: '[]',
-  meta_payload_text: '{}',
-  change_note: '',
+function formatDate(value?: string | null) {
+  if (!value) return '-'
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
-const lineDelta = (base: string, target: string) => {
-  const baseLines = base.split('\n').map((item) => item.trim()).filter(Boolean)
-  const targetLines = target.split('\n').map((item) => item.trim()).filter(Boolean)
-  const baseSet = new Set(baseLines)
-  const targetSet = new Set(targetLines)
-  const added = targetLines.filter((item) => !baseSet.has(item)).length
-  const removed = baseLines.filter((item) => !targetSet.has(item)).length
-  return { added, removed }
+function parseTags(value: string) {
+  return value.split(',').map((item) => item.trim()).filter(Boolean)
 }
 
-const KnowledgeDocs = () => {
-  const navigate = useNavigate()
+function levelLabel(level: string) {
+  switch (level) {
+    case 'INSTANCE':
+      return '实例级'
+    case 'ASSET':
+      return '资产级'
+    case 'FIELD':
+      return '字段级'
+    case 'DOMAIN':
+      return '主题域'
+    case 'CONTRACT':
+      return '契约级'
+    case 'BRIEF':
+      return '简报'
+    default:
+      return level || '未分类'
+  }
+}
+
+function tone(status: string) {
+  if (status === 'PUBLISHED') return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+  if (status === 'ARCHIVED') return 'border-slate-200 bg-slate-100 text-slate-600'
+  return 'border-amber-200 bg-amber-50 text-amber-700'
+}
+
+function StatCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-[26px] border border-[var(--df-border)] bg-[var(--df-surface)] p-5 shadow-[var(--df-shadow-soft)]">
+      <div className="text-xs uppercase tracking-[0.2em] text-[var(--df-text-soft)]">{label}</div>
+      <div className="df-display mt-2 text-[34px] tracking-[-0.04em] text-[var(--df-text)]">{value}</div>
+    </div>
+  )
+}
+
+function RefBlock({ title, items, empty }: { title: string; items: Array<Record<string, unknown>>; empty: string }) {
+  return (
+    <div className="rounded-[26px] border border-[var(--df-border)] bg-[var(--df-surface)] p-5 shadow-[var(--df-shadow-soft)]">
+      <div className="df-display text-[18px] tracking-[-0.03em] text-[var(--df-text)]">{title}</div>
+      {items.length === 0 ? (
+        <div className="mt-3 rounded-[20px] border border-dashed border-[var(--df-border)] bg-[var(--df-surface-2)] px-4 py-6 text-sm text-[var(--df-text-muted)]">
+          {empty}
+        </div>
+      ) : (
+        <div className="mt-3 space-y-2">
+          {items.map((item, index) => (
+            <div key={index} className="rounded-[18px] border border-[var(--df-border)] bg-[var(--df-surface-2)] p-3 text-sm text-[var(--df-text-muted)]">
+              {Object.entries(item).map(([key, value]) => (
+                <div key={key} className="break-all">
+                  <span className="font-medium text-[var(--df-text)]">{key}</span>: {String(value)}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function KnowledgeDocs() {
   const location = useLocation()
-  const { locale } = useLanguage()
-  const isZh = locale === 'zh-CN'
+  const navigate = useNavigate()
+  const params = useMemo(() => new URLSearchParams(location.search), [location.search])
+  const sourceType = params.get('source_type') ?? ''
+  const sourceId = params.get('source_id') ?? ''
+  const linkedSource = useMemo(
+    () => (sourceType && sourceId ? { sourceType, sourceId } : null),
+    [sourceId, sourceType],
+  )
 
   const [overview, setOverview] = useState<KnowledgeOverviewResponse | null>(null)
-  const [templates, setTemplates] = useState<KnowledgeTemplateItem[]>([])
-  const [docsResp, setDocsResp] = useState<KnowledgeDocumentListResponse | null>(null)
+  const [listResponse, setListResponse] = useState<KnowledgeDocumentListResponse | null>(null)
   const [detail, setDetail] = useState<KnowledgeDocumentDetailResponse | null>(null)
-  const [selectedDocId, setSelectedDocId] = useState<number | null>(null)
-  const [compareVersionId, setCompareVersionId] = useState<number | null>(null)
+  const [selectedId, setSelectedId] = useState<number | null>(null)
 
-  const [loadingOverview, setLoadingOverview] = useState(false)
-  const [loadingDocs, setLoadingDocs] = useState(false)
+  const [query, setQuery] = useState('')
+  const [moduleFilter, setModuleFilter] = useState('ALL')
+  const [levelFilter, setLevelFilter] = useState('ALL')
+  const [docTypeFilter, setDocTypeFilter] = useState('ALL')
+  const [statusFilter, setStatusFilter] = useState('ALL')
+  const [offset, setOffset] = useState(0)
+
+  const [loadingOverview, setLoadingOverview] = useState(true)
+  const [loadingList, setLoadingList] = useState(true)
   const [loadingDetail, setLoadingDetail] = useState(false)
-  const [operating, setOperating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState<string | null>(null)
-
-  const [filters, setFilters] = useState({
-    q: '',
-    module: 'ALL',
-    doc_type: 'ALL',
-    status: 'ALL',
-    tag: '',
-    updated_by_me: false,
-    related_source_type: '',
-    related_source_id: '',
-  })
-
-  const [createForm, setCreateForm] = useState<CreateFormState>(defaultCreateForm)
-  const [editForm, setEditForm] = useState<EditFormState>(defaultEditForm)
+  const [submitting, setSubmitting] = useState(false)
+  const [banner, setBanner] = useState<string | null>(null)
+  const [showCreate, setShowCreate] = useState(false)
+  const [form, setForm] = useState<CreateFormState>(DEFAULT_FORM)
   const [commentText, setCommentText] = useState('')
-  const [actionNote, setActionNote] = useState('')
-
-  const selectedTemplate = useMemo(
-    () => templates.find((item) => item.key === createForm.template_key) ?? null,
-    [templates, createForm.template_key],
-  )
 
   const selectedDocument = detail?.document ?? null
-  const selectedCompareVersion = useMemo(
-    () => detail?.version_history.find((item) => item.id === compareVersionId) ?? null,
-    [detail, compareVersionId],
-  )
 
   const loadOverview = async () => {
     setLoadingOverview(true)
     try {
-      const data = await GenesisApi.getKnowledgeOverview()
-      setOverview(data)
-    } catch (e: any) {
-      setError(e?.response?.data?.message ?? (isZh ? '加载知识库总览失败' : 'Failed to load knowledge overview'))
+      setOverview(await GenesisApi.getKnowledgeOverview())
     } finally {
       setLoadingOverview(false)
     }
   }
 
-  const loadTemplates = async () => {
-    try {
-      const data = await GenesisApi.getKnowledgeTemplates()
-      setTemplates(data)
-    } catch {
-      // template fallback is optional for page loading.
-    }
-  }
-
-  const loadDocuments = async () => {
-    setLoadingDocs(true)
+  const loadDocuments = async (preferredId?: number | null) => {
+    setLoadingList(true)
     try {
       const data = await GenesisApi.getKnowledgeDocuments({
-        q: filters.q.trim() || undefined,
-        module: filters.module === 'ALL' ? undefined : filters.module,
-        doc_type: filters.doc_type === 'ALL' ? undefined : filters.doc_type,
-        status: filters.status === 'ALL' ? undefined : filters.status,
-        tag: filters.tag.trim() || undefined,
-        updated_by_me: filters.updated_by_me || undefined,
-        related_source_type: filters.related_source_type.trim() || undefined,
-        related_source_id: filters.related_source_id.trim() || undefined,
-        limit: 100,
-        offset: 0,
+        q: query.trim() || undefined,
+        module: moduleFilter === 'ALL' ? undefined : moduleFilter,
+        knowledge_level: levelFilter === 'ALL' ? undefined : levelFilter,
+        doc_type: docTypeFilter === 'ALL' ? undefined : docTypeFilter,
+        status: statusFilter === 'ALL' ? undefined : statusFilter,
+        related_source_type: linkedSource?.sourceType,
+        related_source_id: linkedSource?.sourceId,
+        include_shared: true,
+        limit: PAGE_SIZE,
+        offset,
       })
-      setDocsResp(data)
-      if (!selectedDocId && data.items.length > 0) {
-        setSelectedDocId(data.items[0].id)
-      }
-      if (selectedDocId != null && !data.items.some((item) => item.id === selectedDocId)) {
-        setSelectedDocId(data.items[0]?.id ?? null)
-      }
-    } catch (e: any) {
-      setError(e?.response?.data?.message ?? (isZh ? '加载文档失败' : 'Failed to load documents'))
+      setListResponse(data)
+      const nextId = preferredId ?? selectedId ?? data.items[0]?.id ?? null
+      setSelectedId(nextId && data.items.some((item) => item.id === nextId) ? nextId : data.items[0]?.id ?? null)
     } finally {
-      setLoadingDocs(false)
+      setLoadingList(false)
     }
   }
 
   const loadDetail = async (docId: number) => {
     setLoadingDetail(true)
     try {
-      const data = await GenesisApi.getKnowledgeDocumentDetail(docId)
-      setDetail(data)
-      setCompareVersionId(data.version_history[0]?.id ?? null)
-      const doc = data.document
-      setEditForm({
-        title: doc.title,
-        summary: doc.summary ?? '',
-        content: doc.content,
-        tags: (doc.tags ?? []).join(', '),
-        related_objects_text: JSON.stringify(
-          (doc.related_objects ?? []).map((item) => ({
-            source_type: item.source_type,
-            source_id: item.source_id,
-            label: item.label ?? undefined,
-            module: item.module ?? undefined,
-          })),
-          null,
-          2,
-        ),
-        meta_payload_text: JSON.stringify(doc.meta_payload ?? {}, null, 2),
-        change_note: '',
-      })
-    } catch (e: any) {
-      setError(e?.response?.data?.message ?? (isZh ? '加载文档详情失败' : 'Failed to load document detail'))
-      setDetail(null)
+      setDetail(await GenesisApi.getKnowledgeDocumentDetail(docId))
     } finally {
       setLoadingDetail(false)
     }
   }
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search)
-    const sourceType = params.get('source_type') ?? ''
-    const sourceId = params.get('source_id') ?? ''
-    if (sourceType && sourceId) {
-      setFilters((prev) => ({
-        ...prev,
-        related_source_type: sourceType,
-        related_source_id: sourceId,
-      }))
-      setCreateForm((prev) => ({
-        ...prev,
-        related_source_type: sourceType,
-        related_source_id: sourceId,
-      }))
-    }
-    void Promise.all([loadOverview(), loadTemplates(), loadDocuments()])
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    void loadOverview()
   }, [])
 
   useEffect(() => {
-    if (selectedDocId != null) {
-      void loadDetail(selectedDocId)
-    } else {
+    void loadDocuments()
+  }, [query, moduleFilter, levelFilter, docTypeFilter, statusFilter, offset, linkedSource?.sourceId, linkedSource?.sourceType])
+
+  useEffect(() => {
+    if (selectedId == null) {
       setDetail(null)
+      return
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDocId])
+    void loadDetail(selectedId)
+  }, [selectedId])
 
-  const refreshAll = async () => {
-    await Promise.all([loadOverview(), loadDocuments()])
-    if (selectedDocId != null) {
-      await loadDetail(selectedDocId)
-    }
+  const refreshAll = async (preferredId?: number | null) => {
+    await Promise.all([loadOverview(), loadDocuments(preferredId)])
+    const nextId = preferredId ?? selectedId
+    if (nextId != null) await loadDetail(nextId)
   }
 
-  const parseTagList = (value: string) =>
-    value
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean)
-
-  const parseJsonObject = (value: string): Record<string, unknown> => {
-    const parsed = JSON.parse(value || '{}')
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-      throw new Error('meta payload must be a JSON object')
+  const createDocument = async () => {
+    if (!form.title.trim()) {
+      window.alert('标题不能为空。')
+      return
     }
-    return parsed as Record<string, unknown>
-  }
-
-  const parseRelatedObjects = (value: string) => {
-    const parsed = JSON.parse(value || '[]')
-    if (!Array.isArray(parsed)) {
-      throw new Error('related_objects must be a JSON array')
-    }
-    return parsed.map((item) => ({
-      source_type: String(item?.source_type ?? ''),
-      source_id: String(item?.source_id ?? ''),
-      label: item?.label != null ? String(item.label) : undefined,
-      module: item?.module != null ? String(item.module) : undefined,
-    }))
-  }
-
-  const applyFilters = async (event: FormEvent) => {
-    event.preventDefault()
-    setError(null)
-    await loadDocuments()
-  }
-
-  const createDocument = async (event: FormEvent) => {
-    event.preventDefault()
-    setOperating(true)
-    setError(null)
-    setMessage(null)
+    setSubmitting(true)
     try {
-      const relatedObjects =
-        createForm.related_source_type.trim() && createForm.related_source_id.trim()
-          ? [
-              {
-                source_type: createForm.related_source_type.trim(),
-                source_id: createForm.related_source_id.trim(),
-                label: createForm.related_label.trim() || undefined,
-              },
-            ]
-          : []
       const created = await GenesisApi.createKnowledgeDocument({
-        doc_type: createForm.doc_type.trim(),
-        module: createForm.module.trim(),
-        title: createForm.title.trim(),
-        summary: createForm.summary.trim() || null,
-        content: createForm.content.trim() || undefined,
-        format: createForm.format,
-        status: createForm.status,
-        tags: parseTagList(createForm.tags),
-        related_objects: relatedObjects,
-        meta_payload: parseJsonObject(createForm.meta_payload_text),
-        template_key: createForm.template_key || undefined,
-        change_note: createForm.change_note.trim() || undefined,
+        title: form.title.trim(),
+        summary: form.summary.trim() || undefined,
+        content: form.content.trim() || undefined,
+        module: form.module.trim().toUpperCase(),
+        doc_type: form.docType.trim().toUpperCase(),
+        knowledge_level: form.knowledgeLevel,
+        status: form.status,
+        format: 'MARKDOWN',
+        tags: parseTags(form.tags),
+        related_objects: linkedSource ? [{ source_type: linkedSource.sourceType, source_id: linkedSource.sourceId, label: `${linkedSource.sourceType}:${linkedSource.sourceId}`, module: 'KNOWLEDGE' }] : undefined,
+        object_refs: linkedSource ? [{ object_type: 'INSTANCE', object_id: linkedSource.sourceId, source_type: linkedSource.sourceType }] : undefined,
       })
-      setMessage(`Document #${created.document.id} created`)
-      setCreateForm((prev) => ({
-        ...prev,
-        title: '',
-        summary: '',
-        content: '',
-        tags: '',
-        change_note: '',
-      }))
-      await Promise.all([loadOverview(), loadDocuments()])
-      setSelectedDocId(created.document.id)
-    } catch (e: any) {
-      setError(e?.response?.data?.message ?? e?.message ?? 'Failed to create document')
+      setBanner(`已创建知识对象：${created.document.title}`)
+      setShowCreate(false)
+      setForm(DEFAULT_FORM)
+      setOffset(0)
+      await refreshAll(created.document.id)
     } finally {
-      setOperating(false)
+      setSubmitting(false)
     }
   }
 
-  const updateDocument = async () => {
-    if (!selectedDocument) {
-      return
-    }
-    setOperating(true)
-    setError(null)
-    setMessage(null)
-    try {
-      await GenesisApi.updateKnowledgeDocument(selectedDocument.id, {
-        title: editForm.title.trim(),
-        summary: editForm.summary.trim() || null,
-        content: editForm.content,
-        tags: parseTagList(editForm.tags),
-        related_objects: parseRelatedObjects(editForm.related_objects_text),
-        meta_payload: parseJsonObject(editForm.meta_payload_text),
-        change_note: editForm.change_note.trim() || undefined,
-      })
-      setMessage('Document updated')
-      await Promise.all([loadOverview(), loadDocuments(), loadDetail(selectedDocument.id)])
-    } catch (e: any) {
-      setError(e?.response?.data?.message ?? e?.message ?? 'Failed to update document')
-    } finally {
-      setOperating(false)
-    }
-  }
-
-  const addComment = async () => {
-    if (!selectedDocument || !commentText.trim()) {
-      return
-    }
-    setOperating(true)
-    setError(null)
+  const addComment = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!selectedDocument || !commentText.trim()) return
+    setSubmitting(true)
     try {
       await GenesisApi.addKnowledgeDocumentComment(selectedDocument.id, { content: commentText.trim() })
       setCommentText('')
-      await Promise.all([loadOverview(), loadDetail(selectedDocument.id), loadDocuments()])
-    } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to add comment')
+      await loadDetail(selectedDocument.id)
     } finally {
-      setOperating(false)
+      setSubmitting(false)
     }
   }
 
   const runAction = async (action: 'PUBLISH' | 'ARCHIVE' | 'UNARCHIVE') => {
-    if (!selectedDocument) {
-      return
-    }
-    setOperating(true)
-    setError(null)
-    setMessage(null)
+    if (!selectedDocument) return
+    setSubmitting(true)
     try {
-      await GenesisApi.operateKnowledgeDocument(selectedDocument.id, {
-        action,
-        change_note: actionNote.trim() || undefined,
-      })
-      setMessage(`Action ${action} applied`)
-      await Promise.all([loadOverview(), loadDocuments(), loadDetail(selectedDocument.id)])
-    } catch (e: any) {
-      setError(e?.response?.data?.message ?? `Failed to ${action.toLowerCase()}`)
+      const next = await GenesisApi.operateKnowledgeDocument(selectedDocument.id, { action })
+      setBanner(`操作 ${action} 已完成：${next.document.title}`)
+      await refreshAll(selectedDocument.id)
     } finally {
-      setOperating(false)
+      setSubmitting(false)
     }
   }
 
-  const restoreVersion = async (versionId: number) => {
-    if (!selectedDocument) {
-      return
-    }
-    setOperating(true)
-    setError(null)
-    setMessage(null)
-    try {
-      await GenesisApi.restoreKnowledgeDocumentVersion(selectedDocument.id, versionId, {
-        change_note: actionNote.trim() || undefined,
-      })
-      setMessage(`Version #${versionId} restored`)
-      await Promise.all([loadOverview(), loadDocuments(), loadDetail(selectedDocument.id)])
-    } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to restore version')
-    } finally {
-      setOperating(false)
-    }
-  }
-
-  const openRelatedObject = (item: KnowledgeDocumentItem['related_objects'][number]) => {
-    const route = item.module_route || '/logs'
-    navigate(route)
-  }
-
-  const moduleOptions = useMemo(
-    () => ['ALL', ...(docsResp?.facets.modules ?? [])],
-    [docsResp?.facets.modules],
-  )
-  const docTypeOptions = useMemo(
-    () => ['ALL', ...(docsResp?.facets.doc_types ?? [])],
-    [docsResp?.facets.doc_types],
-  )
-  const statusOptions = useMemo(
-    () => ['ALL', ...(docsResp?.facets.statuses ?? [])],
-    [docsResp?.facets.statuses],
-  )
+  const facets = listResponse?.facets
+  const items = listResponse?.items ?? []
+  const objectRefs = (selectedDocument?.object_refs ?? []) as Array<Record<string, unknown>>
+  const factRefs = (selectedDocument?.fact_refs ?? []) as Array<Record<string, unknown>>
 
   return (
-    <div className="max-w-7xl mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{isZh ? '知识与文档中心' : 'Knowledge & Documentation Center'}</h2>
-          <p className="text-slate-500 text-base">{isZh ? '沉淀运行手册、规范与运营知识，并管理版本历史。' : 'Document runbooks, specs, and operational knowledge with version history.'}</p>
+    <div className="space-y-6">
+      <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+              <BookOpenText size={14} />
+              知识对象
+            </div>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">知识与记忆工作台</h1>
+            <p className="mt-2 max-w-3xl text-sm text-slate-600">按实例级、资产级、字段级、主题域和契约级管理知识对象。带事实引用的条目会优先进入 AI 检索。</p>
+          </div>
+          <div className="flex gap-3">
+            <button type="button" onClick={() => void refreshAll()} disabled={loadingOverview || loadingList || submitting} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50">
+              <RefreshCw size={15} />
+              {loadingOverview || loadingList ? '刷新中...' : '刷新'}
+            </button>
+            <button type="button" onClick={() => setShowCreate(true)} className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800">
+              <Plus size={15} />
+              新建知识
+            </button>
+          </div>
         </div>
-        <button
-          onClick={() => void refreshAll()}
-          disabled={loadingOverview || loadingDocs || loadingDetail}
-          className="rounded-xl bg-slate-900 text-white px-4 py-2.5 font-medium hover:bg-slate-800 disabled:opacity-60 flex items-center gap-2"
-        >
-          <RefreshCw size={16} />
-          Refresh
-        </button>
-      </header>
-
-      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
-      {message && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>}
-
-      <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
-        <div className="glass rounded-2xl border border-slate-200/60 p-3">
-          <p className="text-xs text-slate-500">Total Docs</p>
-          <p className="text-2xl font-bold text-slate-900">{overview?.summary.total_docs ?? 0}</p>
-        </div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3">
-          <p className="text-xs text-slate-500">Published</p>
-          <p className="text-2xl font-bold text-emerald-700">{overview?.summary.published_docs ?? 0}</p>
-        </div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3">
-          <p className="text-xs text-slate-500">Draft</p>
-          <p className="text-2xl font-bold text-amber-700">{overview?.summary.draft_docs ?? 0}</p>
-        </div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3">
-          <p className="text-xs text-slate-500">Archived</p>
-          <p className="text-2xl font-bold text-slate-700">{overview?.summary.archived_docs ?? 0}</p>
-        </div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3">
-          <p className="text-xs text-slate-500">Updated 7d</p>
-          <p className="text-2xl font-bold text-cyan-700">{overview?.summary.updated_docs_7d ?? 0}</p>
-        </div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3">
-          <p className="text-xs text-slate-500">Comments 7d</p>
-          <p className="text-2xl font-bold text-indigo-700">{overview?.summary.comments_7d ?? 0}</p>
-        </div>
+        {linkedSource ? (
+          <div className="mt-5 flex items-center gap-3 rounded-2xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-700">
+            当前按来源筛选：{linkedSource.sourceType}:{linkedSource.sourceId}
+            <button type="button" onClick={() => navigate('/knowledge')} className="rounded-full border border-indigo-200 bg-white px-3 py-1 text-xs">
+              清除
+            </button>
+          </div>
+        ) : null}
+        {banner ? <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{banner}</div> : null}
       </section>
 
-      <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <div className="glass rounded-3xl border border-slate-200/60 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <BookCopy size={16} className="text-slate-500" />
-            <h3 className="text-sm font-semibold text-slate-800">{isZh ? '创建文档' : 'Create Document'}</h3>
-          </div>
-          <form onSubmit={createDocument} className="space-y-2">
-            <select
-              value={createForm.template_key}
-              onChange={(e) => {
-                const key = e.target.value
-                const template = templates.find((item) => item.key === key)
-                setCreateForm((prev) => ({
-                  ...prev,
-                  template_key: key,
-                  doc_type: template?.doc_type ?? prev.doc_type,
-                  module: template?.module ?? prev.module,
-                  title: template ? '' : prev.title,
-                  summary: template ? template.summary : prev.summary,
-                  content: template ? '' : prev.content,
-                }))
-              }}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-            >
-              <option value="">No template</option>
-              {templates.map((item) => (
-                <option key={item.key} value={item.key}>
-                  {item.key} - {item.title}
-                </option>
-              ))}
-            </select>
-            {selectedTemplate && (
-              <p className="text-xs text-slate-500 rounded-lg bg-slate-50 px-2 py-1">
-                {selectedTemplate.summary}
-              </p>
-            )}
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                value={createForm.doc_type}
-                onChange={(e) => setCreateForm((prev) => ({ ...prev, doc_type: e.target.value }))}
-                placeholder="Doc Type"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                required
-              />
-              <input
-                value={createForm.module}
-                onChange={(e) => setCreateForm((prev) => ({ ...prev, module: e.target.value }))}
-                placeholder="Module"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                required
-              />
-            </div>
-            <input
-              value={createForm.title}
-              onChange={(e) => setCreateForm((prev) => ({ ...prev, title: e.target.value }))}
-              placeholder="Title"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              required
-            />
-            <textarea
-              rows={2}
-              value={createForm.summary}
-              onChange={(e) => setCreateForm((prev) => ({ ...prev, summary: e.target.value }))}
-              placeholder="Summary"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-            />
-            <textarea
-              rows={6}
-              value={createForm.content}
-              onChange={(e) => setCreateForm((prev) => ({ ...prev, content: e.target.value }))}
-              placeholder="Markdown / rich content"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono"
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                value={createForm.format}
-                onChange={(e) => setCreateForm((prev) => ({ ...prev, format: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              >
-                <option value="MARKDOWN">MARKDOWN</option>
-                <option value="RICH_TEXT">RICH_TEXT</option>
-              </select>
-              <select
-                value={createForm.status}
-                onChange={(e) => setCreateForm((prev) => ({ ...prev, status: e.target.value }))}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              >
-                <option value="DRAFT">DRAFT</option>
-                <option value="PUBLISHED">PUBLISHED</option>
-              </select>
-            </div>
-            <input
-              value={createForm.tags}
-              onChange={(e) => setCreateForm((prev) => ({ ...prev, tags: e.target.value }))}
-              placeholder="tags (comma separated)"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                value={createForm.related_source_type}
-                onChange={(e) => setCreateForm((prev) => ({ ...prev, related_source_type: e.target.value }))}
-                placeholder="Related source_type"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              />
-              <input
-                value={createForm.related_source_id}
-                onChange={(e) => setCreateForm((prev) => ({ ...prev, related_source_id: e.target.value }))}
-                placeholder="Related source_id"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              />
-            </div>
-            <input
-              value={createForm.related_label}
-              onChange={(e) => setCreateForm((prev) => ({ ...prev, related_label: e.target.value }))}
-              placeholder="Related label (optional)"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-            />
-            <textarea
-              rows={3}
-              value={createForm.meta_payload_text}
-              onChange={(e) => setCreateForm((prev) => ({ ...prev, meta_payload_text: e.target.value }))}
-              placeholder="meta payload JSON"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono"
-            />
-            <input
-              value={createForm.change_note}
-              onChange={(e) => setCreateForm((prev) => ({ ...prev, change_note: e.target.value }))}
-              placeholder="change note"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-            />
-            <button
-              type="submit"
-              disabled={operating}
-              className="w-full rounded-lg bg-cyan-600 text-white py-2 text-sm font-semibold disabled:opacity-50"
-            >
-              Create Document
-            </button>
-          </form>
-        </div>
+      <div className="grid gap-4 md:grid-cols-5">
+        <StatCard label="知识总数" value={overview?.summary.total_docs ?? 0} />
+        <StatCard label="已发布" value={overview?.summary.published_docs ?? 0} />
+        <StatCard label="草稿" value={overview?.summary.draft_docs ?? 0} />
+        <StatCard label="已归档" value={overview?.summary.archived_docs ?? 0} />
+        <StatCard label="近 7 天更新" value={overview?.summary.updated_docs_7d ?? 0} />
+      </div>
 
-        <div className="glass rounded-3xl border border-slate-200/60 p-4 xl:col-span-2">
-          <div className="flex items-center gap-2 mb-3">
-            <History size={16} className="text-slate-500" />
-            <h3 className="text-sm font-semibold text-slate-800">{isZh ? '目录与筛选' : 'Directory & Filters'}</h3>
-          </div>
-          <form onSubmit={applyFilters} className="grid grid-cols-1 md:grid-cols-6 gap-2">
-            <div className="md:col-span-2 relative">
-              <Search size={14} className="absolute left-2.5 top-2.5 text-slate-400" />
-              <input
-                value={filters.q}
-                onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value }))}
-                placeholder="search title/summary/content"
-                className="w-full rounded-lg border border-slate-200 pl-8 pr-3 py-2 text-sm"
-              />
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(420px,0.95fr)]">
+        <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_150px_150px_150px_150px]">
+            <div className="relative">
+              <Search size={15} className="absolute left-3 top-3 text-slate-400" />
+              <input value={query} onChange={(event) => { setOffset(0); setQuery(event.target.value) }} className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm text-slate-700 outline-none" placeholder="搜索标题、摘要、标签或正文" />
             </div>
-            <select
-              value={filters.module}
-              onChange={(e) => setFilters((prev) => ({ ...prev, module: e.target.value }))}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
-            >
-              {moduleOptions.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
+            <select value={moduleFilter} onChange={(event) => { setOffset(0); setModuleFilter(event.target.value) }} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none">
+              <option value="ALL">全部模块</option>
+              {(facets?.modules ?? []).map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
-            <select
-              value={filters.doc_type}
-              onChange={(e) => setFilters((prev) => ({ ...prev, doc_type: e.target.value }))}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
-            >
-              {docTypeOptions.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
+            <select value={levelFilter} onChange={(event) => { setOffset(0); setLevelFilter(event.target.value) }} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none">
+              <option value="ALL">全部层级</option>
+              {(facets?.knowledge_levels ?? []).map((item) => <option key={item} value={item}>{levelLabel(item)}</option>)}
             </select>
-            <select
-              value={filters.status}
-              onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
-            >
-              {statusOptions.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
+            <select value={docTypeFilter} onChange={(event) => { setOffset(0); setDocTypeFilter(event.target.value) }} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none">
+              <option value="ALL">全部类型</option>
+              {(facets?.doc_types ?? []).map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
-            <button type="submit" className="rounded-lg bg-slate-900 text-white px-3 py-2 text-sm font-semibold">
-              Apply
-            </button>
-            <input
-              value={filters.tag}
-              onChange={(e) => setFilters((prev) => ({ ...prev, tag: e.target.value }))}
-              placeholder="tag"
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm md:col-span-2"
-            />
-            <input
-              value={filters.related_source_type}
-              onChange={(e) => setFilters((prev) => ({ ...prev, related_source_type: e.target.value }))}
-              placeholder="related source_type"
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
-            />
-            <input
-              value={filters.related_source_id}
-              onChange={(e) => setFilters((prev) => ({ ...prev, related_source_id: e.target.value }))}
-              placeholder="related source_id"
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
-            />
-            <label className="inline-flex items-center gap-2 text-xs text-slate-600 px-2">
-              <input
-                type="checkbox"
-                checked={filters.updated_by_me}
-                onChange={(e) => setFilters((prev) => ({ ...prev, updated_by_me: e.target.checked }))}
-              />
-              Updated by me
-            </label>
-          </form>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {(overview?.directory.top_tags ?? []).slice(0, 10).map(([tag, count]) => (
-              <button
-                key={tag}
-                onClick={() => setFilters((prev) => ({ ...prev, tag }))}
-                className="px-2 py-1 rounded-full bg-slate-100 text-xs text-slate-700 hover:bg-slate-200"
-              >
-                {tag} ({count})
+            <select value={statusFilter} onChange={(event) => { setOffset(0); setStatusFilter(event.target.value) }} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none">
+              {['ALL', 'DRAFT', 'REVIEW', 'PUBLISHED', 'ARCHIVED'].map((item) => <option key={item} value={item}>{item === 'ALL' ? '全部状态' : item}</option>)}
+            </select>
+          </div>
+
+          <div className="mt-6 space-y-3">
+            {loadingList ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-12 text-center text-sm text-slate-500">正在加载知识对象...</div>
+            ) : items.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-12 text-center text-sm text-slate-500">当前没有匹配的知识对象。</div>
+            ) : items.map((item) => (
+              <button key={item.id} type="button" onClick={() => setSelectedId(item.id)} className={`w-full rounded-2xl border p-4 text-left transition ${item.id === selectedId ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-slate-50 text-slate-900 hover:border-slate-300 hover:bg-white'}`}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${tone(item.status)}`}>{item.status}</span>
+                  <span className="rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 text-xs text-slate-700">{levelLabel(item.knowledge_level)}</span>
+                  {!item.has_fact_refs ? <span className="rounded-full border border-slate-200 bg-white/70 px-2.5 py-1 text-xs text-slate-500">说明性内容</span> : null}
+                </div>
+                <div className="mt-3 text-base font-semibold">{item.title}</div>
+                <div className={`mt-2 text-sm ${item.id === selectedId ? 'text-slate-200' : 'text-slate-600'}`}>{item.summary || item.preview}</div>
+                <div className={`mt-3 flex flex-wrap gap-2 text-xs ${item.id === selectedId ? 'text-slate-300' : 'text-slate-500'}`}>
+                  <span>{item.module}</span><span>|</span><span>{item.doc_type}</span><span>|</span><span>事实 {item.fact_ref_count}</span><span>|</span><span>对象 {item.object_refs.length}</span><span>|</span><span>{formatDate(item.updated_at)}</span>
+                </div>
               </button>
             ))}
           </div>
-          <div className="mt-4 space-y-2 max-h-80 overflow-auto">
-            {loadingDocs && <p className="text-sm text-slate-500">Loading documents...</p>}
-            {(docsResp?.items ?? []).map((item) => (
-              <button
-                key={item.id}
-                onClick={() => setSelectedDocId(item.id)}
-                className={clsx(
-                  'w-full text-left rounded-xl border p-3 transition',
-                  selectedDocId === item.id
-                    ? 'border-cyan-500 bg-cyan-50'
-                    : 'border-slate-200 bg-white hover:border-slate-300',
-                )}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-semibold text-slate-800 text-sm">{item.title}</p>
-                  <span className={clsx('px-2 py-0.5 rounded-full text-xs font-semibold', statusClass[item.status] ?? 'bg-slate-100 text-slate-700')}>
-                    {item.status}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  {item.module} / {item.doc_type} / v{item.version_no}
-                </p>
-                <p className="text-xs text-slate-600 mt-1 line-clamp-2">{item.summary || item.preview}</p>
-              </button>
-            ))}
-            {(docsResp?.items.length ?? 0) === 0 && !loadingDocs && (
-              <p className="text-sm text-slate-500">No documents under current filters.</p>
-            )}
-          </div>
-        </div>
-      </section>
 
-      <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="glass rounded-3xl border border-slate-200/60 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <FileText size={16} className="text-slate-500" />
-            <h3 className="text-sm font-semibold text-slate-800">Document Detail</h3>
+          <div className="mt-5 flex items-center justify-between text-sm text-slate-500">
+            <div>{listResponse?.total ? `${(listResponse.offset ?? 0) + 1}-${Math.min((listResponse.offset ?? 0) + (listResponse.limit ?? PAGE_SIZE), listResponse.total)}` : '0'} / {listResponse?.total ?? 0}</div>
+            <div className="flex gap-2">
+              <button type="button" disabled={(listResponse?.offset ?? 0) <= 0} onClick={() => setOffset(Math.max(offset - PAGE_SIZE, 0))} className="rounded-xl border border-slate-200 px-3 py-1.5 disabled:opacity-50">上一页</button>
+              <button type="button" disabled={(listResponse?.offset ?? 0) + (listResponse?.limit ?? PAGE_SIZE) >= (listResponse?.total ?? 0)} onClick={() => setOffset(offset + PAGE_SIZE)} className="rounded-xl border border-slate-200 px-3 py-1.5 disabled:opacity-50">下一页</button>
+            </div>
           </div>
-          {!detail && <p className="text-sm text-slate-500">Select one document to inspect details.</p>}
-          {loadingDetail && <p className="text-sm text-slate-500">Loading detail...</p>}
-          {detail && (
-            <div className="space-y-3">
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <p className="font-semibold text-slate-800">{detail.document.title}</p>
-                  <span className={clsx('px-2 py-0.5 rounded-full text-xs font-semibold', statusClass[detail.document.status] ?? 'bg-slate-100 text-slate-700')}>
-                    {detail.document.status}
-                  </span>
+        </section>
+
+        <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+          {selectedDocument == null ? (
+            <div className="flex min-h-[560px] items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-6 text-center text-sm text-slate-500">请选择一条知识对象查看详情。</div>
+          ) : loadingDetail ? (
+            <div className="flex min-h-[560px] items-center justify-center text-sm text-slate-500">正在加载详情...</div>
+          ) : (
+            <div className="space-y-6">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`rounded-full border px-2.5 py-1 text-xs font-medium ${tone(selectedDocument.status)}`}>{selectedDocument.status}</span>
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-700">{levelLabel(selectedDocument.knowledge_level)}</span>
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-700">{selectedDocument.module}</span>
+                    <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-700">{selectedDocument.doc_type}</span>
+                  </div>
+                  <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-900">{selectedDocument.title}</h2>
+                  <p className="mt-2 text-sm text-slate-600">{selectedDocument.summary || selectedDocument.preview}</p>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  {detail.document.module} / {detail.document.doc_type} / version {detail.document.version_no}
-                </p>
-                <p className="text-xs text-slate-500 mt-1">
-                  author {detail.document.author} | editor {detail.document.last_editor}
-                </p>
-                <p className="text-sm text-slate-600 mt-2">{detail.document.summary || '-'}</p>
+                <div className="flex flex-wrap gap-2">
+                  {selectedDocument.status !== 'PUBLISHED' ? <button type="button" onClick={() => void runAction('PUBLISH')} disabled={submitting} className="rounded-2xl bg-slate-900 px-3.5 py-2 text-sm font-medium text-white disabled:opacity-50">发布</button> : null}
+                  <button type="button" onClick={() => void runAction(selectedDocument.status === 'ARCHIVED' ? 'UNARCHIVE' : 'ARCHIVE')} disabled={submitting} className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 disabled:opacity-50">
+                    <Archive size={15} />
+                    {selectedDocument.status === 'ARCHIVED' ? '恢复' : '归档'}
+                  </button>
+                </div>
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-xs font-semibold text-slate-700 mb-2">Content</p>
-                <pre className="text-xs bg-slate-50 p-3 rounded-lg overflow-auto text-slate-700 whitespace-pre-wrap max-h-80">
-{detail.document.content}
-                </pre>
+              <div className="grid gap-4 sm:grid-cols-4">
+                <StatCard label="版本" value={selectedDocument.version_no} />
+                <StatCard label="事实引用" value={selectedDocument.fact_ref_count} />
+                <StatCard label="对象引用" value={selectedDocument.object_refs.length} />
+                <StatCard label="评论数" value={detail?.comments.length ?? 0} />
               </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Link2 size={14} className="text-slate-500" />
-                  <p className="text-xs font-semibold text-slate-700">Related Objects</p>
-                </div>
-                <div className="space-y-2 max-h-40 overflow-auto">
-                  {detail.document.related_objects.map((item, index) => (
-                    <div key={`${item.source_type}-${item.source_id}-${index}`} className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
-                      <div>
-                        <p className="text-sm text-slate-800">
-                          {item.source_type}:{item.source_id}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          module {item.module || '-'} | exists {item.exists == null ? '-' : item.exists ? 'yes' : 'no'}
-                        </p>
+              {!selectedDocument.has_fact_refs ? <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">当前条目暂无事实引用，仅作为说明性内容。</div> : null}
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <div className="text-sm font-semibold text-slate-900">内容</div>
+                <div className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-700">{selectedDocument.content}</div>
+              </div>
+
+              <div className="grid gap-4 xl:grid-cols-2">
+                <RefBlock title="关联对象" items={objectRefs} empty="当前没有对象引用。" />
+                <RefBlock title="事实引用" items={factRefs} empty="当前没有事实引用。" />
+              </div>
+
+              <div className="grid gap-4 xl:grid-cols-2">
+                <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="text-sm font-semibold text-slate-900">评论</div>
+                  <div className="mt-3 space-y-3">
+                    {(detail?.comments ?? []).map((comment: KnowledgeDocumentCommentItem) => (
+                      <div key={comment.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-sm font-medium text-slate-900">{comment.author}</div>
+                          <div className="text-xs text-slate-500">{formatDate(comment.created_at)}</div>
+                        </div>
+                        <div className="mt-2 whitespace-pre-wrap text-sm text-slate-700">{comment.content}</div>
                       </div>
-                      <button
-                        onClick={() => openRelatedObject(item)}
-                        className="rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-700"
-                      >
-                        Open
+                    ))}
+                    {(detail?.comments.length ?? 0) === 0 ? <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">当前没有评论。</div> : null}
+                  </div>
+                  <form onSubmit={addComment} className="mt-4">
+                    <textarea value={commentText} onChange={(event) => setCommentText(event.target.value)} className="min-h-[92px] w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none" placeholder="补充评论或协同说明" />
+                    <div className="mt-3 flex justify-end">
+                      <button type="submit" disabled={submitting || !commentText.trim()} className="inline-flex items-center gap-2 rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50">
+                        <Send size={15} />
+                        添加评论
                       </button>
                     </div>
-                  ))}
-                  {detail.document.related_objects.length === 0 && <p className="text-sm text-slate-500">No related objects.</p>}
+                  </form>
                 </div>
-                <p className="text-xs text-slate-500 mt-2">tags: {(detail.document.tags ?? []).join(', ') || '-'}</p>
-              </div>
 
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <MessageSquare size={14} className="text-slate-500" />
-                  <p className="text-xs font-semibold text-slate-700">Comments</p>
-                </div>
-                <div className="space-y-2 max-h-40 overflow-auto">
-                  {detail.comments.map((comment) => (
-                    <div key={comment.id} className="border-b border-slate-100 pb-1">
-                      <p className="text-xs text-slate-600">
-                        {comment.author} | {new Date(comment.created_at).toLocaleString()}
-                      </p>
-                      <p className="text-sm text-slate-800">{comment.content}</p>
-                    </div>
-                  ))}
-                  {detail.comments.length === 0 && <p className="text-sm text-slate-500">No comments.</p>}
-                </div>
-                <div className="mt-2 flex gap-2">
-                  <input
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    placeholder="Add comment, mention with @user"
-                    className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  />
-                  <button
-                    onClick={() => void addComment()}
-                    disabled={operating || !commentText.trim()}
-                    className="rounded-lg bg-cyan-600 text-white px-3 py-2 text-sm disabled:opacity-50"
-                  >
-                    <Send size={14} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-xs font-semibold text-slate-700 mb-2">Document Actions</p>
-                <input
-                  value={actionNote}
-                  onChange={(e) => setActionNote(e.target.value)}
-                  placeholder="action note (optional)"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                />
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <button
-                    onClick={() => void runAction('PUBLISH')}
-                    disabled={operating}
-                    className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-sm disabled:opacity-50"
-                  >
-                    <UploadCloud size={14} className="inline mr-1" />
-                    Publish
-                  </button>
-                  <button
-                    onClick={() => void runAction('ARCHIVE')}
-                    disabled={operating}
-                    className="rounded-lg bg-slate-700 text-white px-3 py-1.5 text-sm disabled:opacity-50"
-                  >
-                    <Archive size={14} className="inline mr-1" />
-                    Archive
-                  </button>
-                  <button
-                    onClick={() => void runAction('UNARCHIVE')}
-                    disabled={operating}
-                    className="rounded-lg bg-amber-500 text-white px-3 py-1.5 text-sm disabled:opacity-50"
-                  >
-                    Unarchive
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="glass rounded-3xl border border-slate-200/60 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <RotateCcw size={16} className="text-slate-500" />
-            <h3 className="text-sm font-semibold text-slate-800">Versioning & Edit</h3>
-          </div>
-          {!detail && <p className="text-sm text-slate-500">Choose a document to edit and inspect versions.</p>}
-          {detail && (
-            <div className="space-y-3">
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-xs font-semibold text-slate-700 mb-2">Edit Current Document</p>
-                <div className="space-y-2">
-                  <input
-                    value={editForm.title}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, title: e.target.value }))}
-                    placeholder="title"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  />
-                  <textarea
-                    rows={2}
-                    value={editForm.summary}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, summary: e.target.value }))}
-                    placeholder="summary"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  />
-                  <textarea
-                    rows={8}
-                    value={editForm.content}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, content: e.target.value }))}
-                    placeholder="content"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono"
-                  />
-                  <input
-                    value={editForm.tags}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, tags: e.target.value }))}
-                    placeholder="tags (comma separated)"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  />
-                  <textarea
-                    rows={4}
-                    value={editForm.related_objects_text}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, related_objects_text: e.target.value }))}
-                    placeholder="related_objects JSON array"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono"
-                  />
-                  <textarea
-                    rows={4}
-                    value={editForm.meta_payload_text}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, meta_payload_text: e.target.value }))}
-                    placeholder="meta payload JSON"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono"
-                  />
-                  <input
-                    value={editForm.change_note}
-                    onChange={(e) => setEditForm((prev) => ({ ...prev, change_note: e.target.value }))}
-                    placeholder="change note"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-                  />
-                  <button
-                    onClick={() => void updateDocument()}
-                    disabled={operating}
-                    className="w-full rounded-lg bg-cyan-600 text-white py-2 text-sm font-semibold disabled:opacity-50"
-                  >
-                    Save Update
-                  </button>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-xs font-semibold text-slate-700 mb-2">Version History</p>
-                <div className="space-y-2 max-h-52 overflow-auto">
-                  {detail.version_history.map((version) => (
-                    <div key={version.id} className="border-b border-slate-100 pb-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm text-slate-800">
-                          v{version.version_no} {version.action}
-                        </p>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={() => setCompareVersionId(version.id)}
-                            className="rounded border border-slate-300 px-2 py-0.5 text-xs text-slate-700"
-                          >
-                            Compare
-                          </button>
-                          <button
-                            onClick={() => void restoreVersion(version.id)}
-                            disabled={operating}
-                            className="rounded border border-amber-300 px-2 py-0.5 text-xs text-amber-700 disabled:opacity-50"
-                          >
-                            Restore
-                          </button>
+                <div className="rounded-2xl border border-slate-200 bg-white p-5">
+                  <div className="text-sm font-semibold text-slate-900">关联知识对象</div>
+                  <div className="mt-3 space-y-3">
+                    {(detail?.related_documents ?? []).slice(0, 6).map((item: KnowledgeDocumentItem) => (
+                      <button key={item.id} type="button" onClick={() => setSelectedId(item.id)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 p-3 text-left hover:border-slate-300 hover:bg-white">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={`rounded-full border px-2 py-0.5 text-[11px] ${tone(item.status)}`}>{item.status}</span>
+                          <span className="rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[11px] text-slate-700">{levelLabel(item.knowledge_level)}</span>
                         </div>
-                      </div>
-                      <p className="text-[11px] text-slate-500">
-                        {new Date(version.created_at).toLocaleString()} | {version.editor}
-                      </p>
-                      {version.change_note && <p className="text-xs text-slate-600">{version.change_note}</p>}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {selectedCompareVersion && selectedDocument && (
-                <div className="rounded-xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs font-semibold text-slate-700 mb-2">
-                    Compare current (v{selectedDocument.version_no}) with v{selectedCompareVersion.version_no}
-                  </p>
-                  <p className="text-xs text-slate-600 mb-2">
-                    {(() => {
-                      const diff = lineDelta(selectedDocument.content, selectedCompareVersion.content)
-                      return `added lines ${diff.added}, removed lines ${diff.removed}`
-                    })()}
-                  </p>
-                  <pre className="text-xs bg-slate-50 p-2 rounded-lg overflow-auto max-h-36 whitespace-pre-wrap">
-{selectedCompareVersion.content}
-                  </pre>
-                </div>
-              )}
-
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-xs font-semibold text-slate-700 mb-2">Related Documents</p>
-                <div className="space-y-2 max-h-36 overflow-auto">
-                  {detail.related_documents.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => setSelectedDocId(item.id)}
-                      className="block w-full text-left border-b border-slate-100 pb-1"
-                    >
-                      <p className="text-sm text-slate-800">{item.title}</p>
-                      <p className="text-xs text-slate-500">{item.module} / {item.doc_type}</p>
-                    </button>
-                  ))}
-                  {detail.related_documents.length === 0 && <p className="text-sm text-slate-500">No related documents.</p>}
+                        <div className="mt-2 font-medium text-slate-900">{item.title}</div>
+                        <div className="mt-1 text-sm text-slate-600">{item.summary || item.preview}</div>
+                      </button>
+                    ))}
+                    {(detail?.related_documents.length ?? 0) === 0 ? <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">当前没有关联知识对象。</div> : null}
+                  </div>
                 </div>
               </div>
             </div>
           )}
+        </section>
+      </div>
+
+      {showCreate ? (
+        <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/40 p-6">
+          <div className="w-full max-w-3xl rounded-[28px] border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">新建知识对象</div>
+                <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-900">创建知识条目</h2>
+              </div>
+              <button type="button" onClick={() => { setShowCreate(false); setForm(DEFAULT_FORM) }} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">关闭</button>
+            </div>
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              <input value={form.title} onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none" placeholder="标题" />
+              <input value={form.tags} onChange={(event) => setForm((prev) => ({ ...prev, tags: event.target.value }))} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none" placeholder="tag-a, tag-b" />
+              <input value={form.module} onChange={(event) => setForm((prev) => ({ ...prev, module: event.target.value.toUpperCase() }))} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none" placeholder="模块" />
+              <input value={form.docType} onChange={(event) => setForm((prev) => ({ ...prev, docType: event.target.value.toUpperCase() }))} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none" placeholder="文档类型" />
+              <select value={form.knowledgeLevel} onChange={(event) => setForm((prev) => ({ ...prev, knowledgeLevel: event.target.value }))} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none">
+                {['BRIEF', 'INSTANCE', 'ASSET', 'FIELD', 'DOMAIN', 'CONTRACT'].map((item) => <option key={item} value={item}>{levelLabel(item)}</option>)}
+              </select>
+              <select value={form.status} onChange={(event) => setForm((prev) => ({ ...prev, status: event.target.value }))} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none">
+                {['DRAFT', 'REVIEW', 'PUBLISHED'].map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+              <textarea value={form.summary} onChange={(event) => setForm((prev) => ({ ...prev, summary: event.target.value }))} className="min-h-[88px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none md:col-span-2" placeholder="摘要" />
+              <textarea value={form.content} onChange={(event) => setForm((prev) => ({ ...prev, content: event.target.value }))} className="min-h-[220px] rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 outline-none md:col-span-2" placeholder="正文" />
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" onClick={() => { setShowCreate(false); setForm(DEFAULT_FORM) }} className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700">取消</button>
+              <button type="button" onClick={() => void createDocument()} disabled={submitting} className="rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50">{submitting ? '创建中...' : '创建知识对象'}</button>
+            </div>
+          </div>
         </div>
-      </section>
+      ) : null}
     </div>
   )
 }
-
-export default KnowledgeDocs

@@ -20,6 +20,7 @@ import {
   type CostUsageResourceListResponse,
 } from '../services/api'
 import { useLanguage } from '../i18n/language'
+import { useBrowserErrorAlert } from '../hooks/useBrowserErrorAlert'
 
 type DatePreset = '7D' | '30D' | 'CUSTOM'
 
@@ -59,6 +60,7 @@ const CostUsageAnalytics = () => {
   const [loadingResources, setLoadingResources] = useState(false)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  useBrowserErrorAlert(error)
 
   const [filters, setFilters] = useState({
     scope: 'PROJECT',
@@ -254,8 +256,6 @@ const CostUsageAnalytics = () => {
           Refresh
         </button>
       </header>
-
-      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
 
       <form onSubmit={applyFilters} className="glass rounded-3xl border border-slate-200/60 p-4">
         <div className="grid grid-cols-1 md:grid-cols-6 gap-3">

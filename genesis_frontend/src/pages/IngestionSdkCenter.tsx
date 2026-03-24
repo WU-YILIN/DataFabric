@@ -10,8 +10,13 @@ import {
   type IngestionOptionsResponse,
   type IngestionOverviewResponse,
 } from '../services/api'
+import { useBrowserErrorAlert } from '../hooks/useBrowserErrorAlert'
+import { useLanguage } from '../i18n/language'
 
 const IngestionSdkCenter = () => {
+  const { locale } = useLanguage()
+  const isZh = locale === 'zh-CN'
+  const L = (cn: string, en: string) => (isZh ? cn : en)
   const [overview, setOverview] = useState<IngestionOverviewResponse | null>(null)
   const [options, setOptions] = useState<IngestionOptionsResponse | null>(null)
   const [listResp, setListResp] = useState<IngestionChannelListResponse | null>(null)
@@ -60,6 +65,7 @@ const IngestionSdkCenter = () => {
   const [loading, setLoading] = useState(false)
   const [operating, setOperating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  useBrowserErrorAlert(error)
   const [message, setMessage] = useState<string | null>(null)
 
   const parseJsonObject = (text: string): Record<string, unknown> | null => {
@@ -126,7 +132,7 @@ const IngestionSdkCenter = () => {
         await loadDetail(selectedChannelId)
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load ingestion center')
+      setError(e?.response?.data?.message ?? L('加载接入中心失败', 'Failed to load ingestion center'))
     } finally {
       setLoading(false)
     }
@@ -153,7 +159,7 @@ const IngestionSdkCenter = () => {
     try {
       await loadChannels()
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load channels')
+      setError(e?.response?.data?.message ?? L('加载通道失败', 'Failed to load channels'))
     } finally {
       setLoading(false)
     }
@@ -178,12 +184,12 @@ const IngestionSdkCenter = () => {
           .filter(Boolean),
         sdk_version: createForm.sdk_version.trim(),
       })
-      setMessage(`Channel created: ${created.channel.app_id}`)
+      setMessage(`${L('通道已创建', 'Channel created')}: ${created.channel.app_id}`)
       setCreateForm((prev) => ({ ...prev, app_name: '', blocked_events_text: '' }))
       await Promise.all([loadOverview(), loadChannels()])
       setSelectedChannelId(created.channel.id)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Create channel failed')
+      setError(e?.response?.data?.message ?? L('创建通道失败', 'Create channel failed'))
     } finally {
       setOperating(false)
     }
@@ -207,10 +213,10 @@ const IngestionSdkCenter = () => {
         endpoint_domain: editForm.endpoint_domain.trim(),
         endpoint_path: editForm.endpoint_path.trim(),
       })
-      setMessage(`Channel updated: ${updated.channel.app_id}`)
+      setMessage(`${L('通道已更新', 'Channel updated')}: ${updated.channel.app_id}`)
       await Promise.all([loadOverview(), loadChannels(), loadDetail(updated.channel.id)])
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Update channel failed')
+      setError(e?.response?.data?.message ?? L('更新通道失败', 'Update channel failed'))
     } finally {
       setOperating(false)
     }
@@ -225,10 +231,10 @@ const IngestionSdkCenter = () => {
       const rotated = await GenesisApi.rotateIngestionChannelKey(detail.channel.id, {
         reason: 'Rotate from ingestion sdk center',
       })
-      setMessage(`Key rotated for ${rotated.channel.app_id}`)
+      setMessage(`${L('密钥已轮换', 'Key rotated for')} ${rotated.channel.app_id}`)
       await Promise.all([loadOverview(), loadChannels(), loadDetail(rotated.channel.id)])
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Rotate key failed')
+      setError(e?.response?.data?.message ?? L('轮换密钥失败', 'Rotate key failed'))
     } finally {
       setOperating(false)
     }
@@ -238,13 +244,13 @@ const IngestionSdkCenter = () => {
     if (!detail) return
     const payload = parseJsonObject(sampleEventForm.payloadJson)
     if (!payload) {
-      setError('Sample payload must be JSON object')
+      setError(L('示例 payload 必须是 JSON 对象', 'Sample payload must be JSON object'))
       return
     }
 
     const ingestKey = detail.quickstart.headers['X-INGEST-KEY']
     if (!ingestKey) {
-      setError('No ingest key available in quickstart')
+      setError(L('Quickstart 中没有可用的 ingest key', 'No ingest key available in quickstart'))
       return
     }
 
@@ -290,8 +296,6 @@ const IngestionSdkCenter = () => {
           Refresh
         </button>
       </header>
-
-      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
       {message && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>}
 
       <section className="grid grid-cols-2 md:grid-cols-6 gap-3">

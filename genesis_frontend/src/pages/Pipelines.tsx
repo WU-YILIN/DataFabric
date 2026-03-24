@@ -9,6 +9,7 @@ import {
   type PipelineProvisionEventOption,
 } from '../services/api'
 import { useLanguage } from '../i18n/language'
+import { useBrowserErrorAlert } from '../hooks/useBrowserErrorAlert'
 
 const statusClass: Record<string, string> = {
   RUNNING: 'bg-emerald-100 text-emerald-700',
@@ -19,20 +20,14 @@ const statusClass: Record<string, string> = {
   STOPPED: 'bg-slate-200 text-slate-700',
 }
 
-const statusOptions = [
-  'ALL',
-  'RUNNING',
-  'FAILED',
-  'PROVISIONING',
-  'PENDING',
-  'ROLLING_BACK',
-  'STOPPED',
-]
+const statusOptions = ['ALL', 'RUNNING', 'FAILED', 'PROVISIONING', 'PENDING', 'ROLLING_BACK', 'STOPPED']
 
-const Pipelines = () => {
+export default function Pipelines() {
   const navigate = useNavigate()
   const { locale } = useLanguage()
   const isZh = locale === 'zh-CN'
+  const L = (cn: string, en: string) => (isZh ? cn : en)
+
   const [pipelines, setPipelines] = useState<Pipeline[]>([])
   const [approvedEvents, setApprovedEvents] = useState<PipelineProvisionEventOption[]>([])
   const [history, setHistory] = useState<PipelineHistoryItem[]>([])
@@ -54,11 +49,17 @@ const Pipelines = () => {
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [operationLoadingId, setOperationLoadingId] = useState<number | null>(null)
+  useBrowserErrorAlert(error)
 
   const selectedPipeline = useMemo(
     () => pipelines.find((item) => item.id === selectedPipelineId) ?? null,
     [pipelines, selectedPipelineId],
   )
+
+  const formatDate = (value?: string | null) => {
+    if (!value) return '-'
+    return new Date(value).toLocaleString(isZh ? 'zh-CN' : 'en-US', { hour12: false })
+  }
 
   const loadProvisionOptions = async () => {
     try {
@@ -68,14 +69,12 @@ const Pipelines = () => {
         setEventCode(data.approved_events[0].code)
       }
     } catch {
-      // keep page usable even if options call fails
+      // keep page usable
     }
   }
 
   const loadPipelines = async (silent = false) => {
-    if (!silent) {
-      setLoading(true)
-    }
+    if (!silent) setLoading(true)
     setError(null)
     try {
       const rows = await GenesisApi.getPipelines({
@@ -88,35 +87,28 @@ const Pipelines = () => {
         setHistory([])
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? (isZh ? '加载管道失败' : 'Failed to load pipelines'))
+      setError(e?.response?.data?.message ?? L('加载管道失败', 'Failed to load pipelines'))
     } finally {
-      if (!silent) {
-        setLoading(false)
-      }
+      if (!silent) setLoading(false)
     }
   }
 
   const loadHistory = async (pipelineId: number, silent = false) => {
-    if (!silent) {
-      setLoading(true)
-    }
+    if (!silent) setLoading(true)
     setError(null)
     try {
       const rows = await GenesisApi.getPipelineHistory(pipelineId)
       setSelectedPipelineId(pipelineId)
       setHistory(rows)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load pipeline history')
+      setError(e?.response?.data?.message ?? L('加载管道历史失败', 'Failed to load pipeline history'))
     } finally {
-      if (!silent) {
-        setLoading(false)
-      }
+      if (!silent) setLoading(false)
     }
   }
 
   useEffect(() => {
     void Promise.all([loadProvisionOptions(), loadPipelines()])
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -124,26 +116,20 @@ const Pipelines = () => {
       void loadPipelines(true)
     }, 250)
     return () => window.clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchText, statusFilter])
 
   useEffect(() => {
-    if (!autoRefresh) {
-      return
-    }
+    if (!autoRefresh) return
     const timer = window.setInterval(() => {
       void loadPipelines(true)
-      if (selectedPipelineId) {
-        void loadHistory(selectedPipelineId, true)
-      }
+      if (selectedPipelineId) void loadHistory(selectedPipelineId, true)
     }, 15000)
     return () => window.clearInterval(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoRefresh, selectedPipelineId, searchText, statusFilter])
 
   const onProvision = async () => {
     if (!eventCode.trim()) {
-      setError('Please select an approved event first')
+      setError(L('请先选择一个已批准事件', 'Please select an approved event first'))
       return
     }
     setLoading(true)
@@ -159,46 +145,41 @@ const Pipelines = () => {
         topic_prefix: topicPrefix.trim() || 'tracking',
         job_name_template: jobNameTemplate.trim() || 'flink_{project_id}_{event_code}',
       })
-      setNotice(`Pipeline #${pipeline.id} provisioned`)
+      setNotice(`${L('管道已创建', 'Pipeline provisioned')} #${pipeline.id}`)
       await loadPipelines(true)
       await loadHistory(pipeline.id, true)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to provision pipeline')
+      setError(e?.response?.data?.message ?? L('创建管道失败', 'Failed to provision pipeline'))
     } finally {
       setLoading(false)
     }
   }
 
-  const runPipelineOperation = async (
-    pipelineId: number,
-    operation: 'pause' | 'resume' | 'sync' | 'rollback',
-  ) => {
+  const runPipelineOperation = async (pipelineId: number, operation: 'pause' | 'resume' | 'sync' | 'rollback') => {
     setOperationLoadingId(pipelineId)
     setError(null)
     setNotice(null)
     try {
       if (operation === 'pause') {
         await GenesisApi.pausePipeline(pipelineId)
-        setNotice(`Pipeline #${pipelineId} paused`)
+        setNotice(`${L('管道已暂停', 'Pipeline paused')} #${pipelineId}`)
       }
       if (operation === 'resume') {
         await GenesisApi.resumePipeline(pipelineId)
-        setNotice(`Pipeline #${pipelineId} resumed`)
+        setNotice(`${L('管道已恢复', 'Pipeline resumed')} #${pipelineId}`)
       }
       if (operation === 'sync') {
         await GenesisApi.syncPipeline(pipelineId)
-        setNotice(`Pipeline #${pipelineId} synced`)
+        setNotice(`${L('管道已同步', 'Pipeline synced')} #${pipelineId}`)
       }
       if (operation === 'rollback') {
         await GenesisApi.rollbackPipeline(pipelineId)
-        setNotice(`Pipeline #${pipelineId} rolled back`)
+        setNotice(`${L('管道已回滚', 'Pipeline rolled back')} #${pipelineId}`)
       }
       await loadPipelines(true)
-      if (selectedPipelineId === pipelineId) {
-        await loadHistory(pipelineId, true)
-      }
+      if (selectedPipelineId === pipelineId) await loadHistory(pipelineId, true)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? `Pipeline ${operation} failed`)
+      setError(e?.response?.data?.message ?? `${L('管道操作失败', 'Pipeline operation failed')}: ${operation}`)
     } finally {
       setOperationLoadingId(null)
     }
@@ -213,52 +194,40 @@ const Pipelines = () => {
   }
 
   return (
-    <div className="max-w-[1440px] mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
+    <div className="mx-auto max-w-[1440px] animate-in fade-in slide-in-from-bottom-8 duration-700">
       <section className="mb-4 rounded-2xl border border-slate-200 bg-white/80 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-slate-900">{isZh ? '下一步建议' : 'Recommended Next Step'}</p>
+            <p className="text-sm font-semibold text-slate-900">{L('推荐下一步', 'Recommended Next Step')}</p>
             <p className="text-xs text-slate-600">
-              {isZh ? '管道运行稳定后，请进入数据质量页配置规则并开启监控告警。' : 'After pipeline is stable, configure DQ rules and enable monitoring alerts.'}
+              {L('管道稳定运行后，继续配置数据质量规则并开启监控告警。', 'After pipeline is stable, configure DQ rules and enable monitoring alerts.')}
             </p>
           </div>
           <div className="flex gap-2">
             <button onClick={() => navigate('/data-quality')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
-              {isZh ? '去数据质量' : 'Go Data Quality'}
+              {L('前往数据质量', 'Go Data Quality')}
             </button>
             <button onClick={() => navigate('/monitoring')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
-              {isZh ? '去监控' : 'Go Monitoring'}
+              {L('前往监控', 'Go Monitoring')}
             </button>
           </div>
         </div>
       </section>
+
       <header className="mb-6">
-        <h2 className="text-3xl font-bold text-gray-900 tracking-tight">{isZh ? '管道控制台' : 'Pipelines Console'}</h2>
-        <p className="text-gray-500 text-base">
-          Provision event pipelines, inspect topology, track status timeline, and operate lifecycle.
-        </p>
+        <h2 className="text-3xl font-bold tracking-tight text-gray-900">{L('管道控制台', 'Pipelines Console')}</h2>
+        <p className="text-base text-gray-500">{L('创建事件管道、查看拓扑、跟踪状态时间线，并执行生命周期操作。', 'Provision event pipelines, inspect topology, track status timeline, and operate lifecycle.')}</p>
       </header>
 
-      {error && (
-        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
-      )}
-      {notice && (
-        <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-          {notice}
-        </div>
-      )}
+      {notice && <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{notice}</div>}
 
-      <section className="glass rounded-2xl p-4 border border-gray-200/60 mb-4">
-        <h3 className="text-sm font-semibold text-slate-700 uppercase mb-3">Create Pipeline</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+      <section className="mb-4 rounded-2xl border border-gray-200/60 p-4 glass">
+        <h3 className="mb-3 text-sm font-semibold uppercase text-slate-700">{L('创建管道', 'Create Pipeline')}</h3>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
           <div className="xl:col-span-2">
-            <label className="text-xs text-slate-500 mb-1 block">Approved Event</label>
-            <select
-              value={eventCode}
-              onChange={(e) => setEventCode(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white outline-none"
-            >
-              {approvedEvents.length === 0 && <option value="">No approved event available</option>}
+            <label className="mb-1 block text-xs text-slate-500">{L('已批准事件', 'Approved Event')}</label>
+            <select value={eventCode} onChange={(e) => setEventCode(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none">
+              {approvedEvents.length === 0 && <option value="">{L('暂无可用已批准事件', 'No approved event available')}</option>}
               {approvedEvents.map((event) => (
                 <option key={event.id} value={event.code}>
                   {event.code} | {event.name}
@@ -267,203 +236,100 @@ const Pipelines = () => {
             </select>
           </div>
           <div>
-            <label className="text-xs text-slate-500 mb-1 block">Partitions</label>
-            <input
-              type="number"
-              min={1}
-              max={256}
-              value={partitions}
-              onChange={(e) => setPartitions(Number(e.target.value))}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white outline-none"
-            />
+            <label className="mb-1 block text-xs text-slate-500">{L('分区数', 'Partitions')}</label>
+            <input type="number" min={1} max={256} value={partitions} onChange={(e) => setPartitions(Number(e.target.value))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none" />
           </div>
           <div>
-            <label className="text-xs text-slate-500 mb-1 block">Replication</label>
-            <input
-              type="number"
-              min={1}
-              max={5}
-              value={replicationFactor}
-              onChange={(e) => setReplicationFactor(Number(e.target.value))}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white outline-none"
-            />
+            <label className="mb-1 block text-xs text-slate-500">{L('副本数', 'Replication')}</label>
+            <input type="number" min={1} max={5} value={replicationFactor} onChange={(e) => setReplicationFactor(Number(e.target.value))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none" />
           </div>
           <div>
-            <label className="text-xs text-slate-500 mb-1 block">Retention (hours)</label>
-            <input
-              type="number"
-              min={1}
-              max={24 * 365}
-              value={retentionHours}
-              onChange={(e) => setRetentionHours(Number(e.target.value))}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white outline-none"
-            />
+            <label className="mb-1 block text-xs text-slate-500">{L('保留时长（小时）', 'Retention (hours)')}</label>
+            <input type="number" min={1} max={24 * 365} value={retentionHours} onChange={(e) => setRetentionHours(Number(e.target.value))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none" />
           </div>
           <div>
-            <label className="text-xs text-slate-500 mb-1 block">Resource Tier</label>
-            <select
-              value={resourceTier}
-              onChange={(e) => setResourceTier(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white outline-none"
-            >
+            <label className="mb-1 block text-xs text-slate-500">{L('资源等级', 'Resource Tier')}</label>
+            <select value={resourceTier} onChange={(e) => setResourceTier(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none">
               <option value="small">small</option>
               <option value="standard">standard</option>
               <option value="large">large</option>
             </select>
           </div>
           <div>
-            <label className="text-xs text-slate-500 mb-1 block">Topic Prefix</label>
-            <input
-              value={topicPrefix}
-              onChange={(e) => setTopicPrefix(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white outline-none"
-            />
+            <label className="mb-1 block text-xs text-slate-500">{L('Topic 前缀', 'Topic Prefix')}</label>
+            <input value={topicPrefix} onChange={(e) => setTopicPrefix(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none" />
           </div>
           <div className="xl:col-span-2">
-            <label className="text-xs text-slate-500 mb-1 block">Job Name Template</label>
-            <input
-              value={jobNameTemplate}
-              onChange={(e) => setJobNameTemplate(e.target.value)}
-              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white outline-none font-mono text-sm"
-            />
+            <label className="mb-1 block text-xs text-slate-500">{L('作业名模板', 'Job Name Template')}</label>
+            <input value={jobNameTemplate} onChange={(e) => setJobNameTemplate(e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-mono text-sm outline-none" />
           </div>
         </div>
         <div className="mt-3 flex gap-2">
-          <button
-            onClick={() => void onProvision()}
-            disabled={loading}
-            className="rounded-xl bg-cyan-600 text-white px-4 py-2.5 font-medium hover:bg-cyan-500 disabled:opacity-50"
-          >
-            Provision Pipeline
+          <button onClick={() => void onProvision()} disabled={loading} className="rounded-xl bg-cyan-600 px-4 py-2.5 font-medium text-white hover:bg-cyan-500 disabled:opacity-50">
+            {L('创建管道', 'Provision Pipeline')}
           </button>
-          <button
-            onClick={() => void Promise.all([loadProvisionOptions(), loadPipelines()])}
-            disabled={loading}
-            className="rounded-xl bg-slate-100 text-slate-700 px-4 py-2.5 font-medium hover:bg-slate-200 disabled:opacity-50 flex items-center gap-2"
-          >
+          <button onClick={() => void Promise.all([loadProvisionOptions(), loadPipelines()])} disabled={loading} className="flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 font-medium text-slate-700 hover:bg-slate-200 disabled:opacity-50">
             <RefreshCw size={14} />
-            Refresh
+            {L('刷新', 'Refresh')}
           </button>
         </div>
       </section>
 
-      <section className="glass rounded-2xl p-4 border border-gray-200/60 mb-4">
+      <section className="mb-4 rounded-2xl border border-gray-200/60 p-4 glass">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-[280px]">
             <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
-            <input
-              value={searchText}
-              onChange={(e) => setSearchText(e.target.value)}
-              placeholder="Search event/topic/job..."
-              className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white border border-slate-200 outline-none"
-            />
+            <input value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder={L('搜索事件 / topic / job...', 'Search event/topic/job...')} className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-9 pr-3 outline-none" />
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 rounded-xl bg-white border border-slate-200 outline-none"
-          >
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 outline-none">
             {statusOptions.map((status) => (
-              <option key={status} value={status}>
-                {status}
-              </option>
+              <option key={status} value={status}>{status}</option>
             ))}
           </select>
-          <label className="text-sm text-slate-600 flex items-center gap-2">
+          <label className="flex items-center gap-2 text-sm text-slate-600">
             <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} />
-            Auto refresh (15s)
+            {L('自动刷新（15秒）', 'Auto refresh (15s)')}
           </label>
-          <span className="text-xs text-slate-500 ml-auto">Total {pipelines.length}</span>
+          <span className="ml-auto text-xs text-slate-500">{L('总数', 'Total')} {pipelines.length}</span>
         </div>
       </section>
 
-      <section className="glass rounded-2xl overflow-auto border border-gray-200/60">
+      <section className="overflow-auto rounded-2xl border border-gray-200/60 glass">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-slate-600">
             <tr>
-              <th className="text-left px-4 py-3">ID</th>
-              <th className="text-left px-4 py-3">Event</th>
-              <th className="text-left px-4 py-3">Topic</th>
-              <th className="text-left px-4 py-3">Flink Job</th>
-              <th className="text-left px-4 py-3">Status</th>
-              <th className="text-left px-4 py-3">Last Sync</th>
-              <th className="text-left px-4 py-3">Actions</th>
+              <th className="px-4 py-3 text-left">ID</th>
+              <th className="px-4 py-3 text-left">{L('事件', 'Event')}</th>
+              <th className="px-4 py-3 text-left">Topic</th>
+              <th className="px-4 py-3 text-left">Flink Job</th>
+              <th className="px-4 py-3 text-left">{L('状态', 'Status')}</th>
+              <th className="px-4 py-3 text-left">{L('最近同步', 'Last Sync')}</th>
+              <th className="px-4 py-3 text-left">{L('操作', 'Actions')}</th>
             </tr>
           </thead>
           <tbody>
             {loading && pipelines.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
-                  Loading pipelines...
-                </td>
-              </tr>
+              <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-500">{L('正在加载管道...', 'Loading pipelines...')}</td></tr>
             ) : pipelines.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
-                  No pipeline found.
-                </td>
-              </tr>
+              <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-500">{L('当前没有匹配的管道。', 'No pipeline found.')}</td></tr>
             ) : (
               pipelines.map((pipeline) => (
-                <tr
-                  key={pipeline.id}
-                  className={`border-t border-slate-100 ${selectedPipelineId === pipeline.id ? 'bg-cyan-50/40' : ''}`}
-                >
+                <tr key={pipeline.id} className={`border-t border-slate-100 ${selectedPipelineId === pipeline.id ? 'bg-cyan-50/40' : ''}`}>
                   <td className="px-4 py-3">{pipeline.id}</td>
                   <td className="px-4 py-3 font-mono">{pipeline.event_code}</td>
                   <td className="px-4 py-3 font-mono">{pipeline.topic_name}</td>
                   <td className="px-4 py-3 font-mono">{pipeline.flink_job_name}</td>
                   <td className="px-4 py-3">
-                    <span
-                      className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        statusClass[pipeline.status] ?? 'bg-slate-100 text-slate-700'
-                      }`}
-                    >
-                      {pipeline.status}
-                    </span>
+                    <span className={`rounded-full px-2 py-1 text-xs font-semibold ${statusClass[pipeline.status] ?? 'bg-slate-100 text-slate-700'}`}>{pipeline.status}</span>
                   </td>
-                  <td className="px-4 py-3 text-xs text-slate-500">
-                    {pipeline.last_sync_at ? new Date(pipeline.last_sync_at).toLocaleString() : '-'}
-                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-500">{formatDate(pipeline.last_sync_at)}</td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => void loadHistory(pipeline.id)}
-                        className="px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs"
-                      >
-                        Detail
-                      </button>
-                      <button
-                        onClick={() => void runPipelineOperation(pipeline.id, 'pause')}
-                        disabled={operationLoadingId === pipeline.id}
-                        className="px-2.5 py-1.5 rounded-lg bg-amber-100 text-amber-700 hover:bg-amber-200 text-xs flex items-center gap-1 disabled:opacity-50"
-                      >
-                        <Pause size={12} />
-                        Pause
-                      </button>
-                      <button
-                        onClick={() => void runPipelineOperation(pipeline.id, 'resume')}
-                        disabled={operationLoadingId === pipeline.id}
-                        className="px-2.5 py-1.5 rounded-lg bg-emerald-100 text-emerald-700 hover:bg-emerald-200 text-xs flex items-center gap-1 disabled:opacity-50"
-                      >
-                        <Play size={12} />
-                        Resume
-                      </button>
-                      <button
-                        onClick={() => void runPipelineOperation(pipeline.id, 'sync')}
-                        disabled={operationLoadingId === pipeline.id}
-                        className="px-2.5 py-1.5 rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200 text-xs disabled:opacity-50"
-                      >
-                        Sync
-                      </button>
-                      <button
-                        onClick={() => void runPipelineOperation(pipeline.id, 'rollback')}
-                        disabled={operationLoadingId === pipeline.id}
-                        className="px-2.5 py-1.5 rounded-lg bg-rose-100 text-rose-700 hover:bg-rose-200 text-xs flex items-center gap-1 disabled:opacity-50"
-                      >
-                        <RotateCcw size={12} />
-                        Rollback
-                      </button>
+                      <button onClick={() => void loadHistory(pipeline.id)} className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs text-slate-700 hover:bg-slate-200">{L('详情', 'Detail')}</button>
+                      <button onClick={() => void runPipelineOperation(pipeline.id, 'pause')} disabled={operationLoadingId === pipeline.id} className="flex items-center gap-1 rounded-lg bg-amber-100 px-2.5 py-1.5 text-xs text-amber-700 hover:bg-amber-200 disabled:opacity-50"><Pause size={12} />{L('暂停', 'Pause')}</button>
+                      <button onClick={() => void runPipelineOperation(pipeline.id, 'resume')} disabled={operationLoadingId === pipeline.id} className="flex items-center gap-1 rounded-lg bg-emerald-100 px-2.5 py-1.5 text-xs text-emerald-700 hover:bg-emerald-200 disabled:opacity-50"><Play size={12} />{L('恢复', 'Resume')}</button>
+                      <button onClick={() => void runPipelineOperation(pipeline.id, 'sync')} disabled={operationLoadingId === pipeline.id} className="rounded-lg bg-blue-100 px-2.5 py-1.5 text-xs text-blue-700 hover:bg-blue-200 disabled:opacity-50">{L('同步', 'Sync')}</button>
+                      <button onClick={() => void runPipelineOperation(pipeline.id, 'rollback')} disabled={operationLoadingId === pipeline.id} className="flex items-center gap-1 rounded-lg bg-rose-100 px-2.5 py-1.5 text-xs text-rose-700 hover:bg-rose-200 disabled:opacity-50"><RotateCcw size={12} />{L('回滚', 'Rollback')}</button>
                     </div>
                   </td>
                 </tr>
@@ -475,86 +341,47 @@ const Pipelines = () => {
 
       {selectedPipeline && (
         <>
-          <div
-            className="fixed inset-0 bg-black/25 z-40"
-            onClick={() => {
-              setSelectedPipelineId(null)
-              setHistory([])
-            }}
-          />
-          <aside className="fixed right-0 top-0 h-screen w-[560px] bg-white z-50 border-l border-slate-200 shadow-2xl overflow-auto">
-            <div className="p-5 border-b border-slate-200 flex items-center justify-between">
-              <h3 className="font-bold text-slate-900 text-lg">Pipeline Detail #{selectedPipeline.id}</h3>
-              <button
-                onClick={() => {
-                  setSelectedPipelineId(null)
-                  setHistory([])
-                }}
-                className="p-2 rounded-lg hover:bg-slate-100"
-              >
-                <X size={16} />
-              </button>
+          <div className="fixed inset-0 z-40 bg-black/25" onClick={() => { setSelectedPipelineId(null); setHistory([]) }} />
+          <aside className="fixed right-0 top-0 z-50 h-screen w-[560px] overflow-auto border-l border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 p-5">
+              <h3 className="text-lg font-bold text-slate-900">{L('管道详情', 'Pipeline Detail')} #{selectedPipeline.id}</h3>
+              <button onClick={() => { setSelectedPipelineId(null); setHistory([]) }} className="rounded-lg p-2 hover:bg-slate-100"><X size={16} /></button>
             </div>
-
-            <div className="p-5 space-y-6">
+            <div className="space-y-6 p-5">
               <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Topology</p>
+                <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">{L('拓扑', 'Topology')}</p>
                 <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex items-center justify-between gap-2 text-sm">
-                    <div className="flex-1 rounded-lg bg-white border border-slate-200 px-3 py-2">
-                      Event
-                      <p className="font-mono text-xs text-slate-600 mt-1">{selectedPipeline.event_code}</p>
-                    </div>
+                    <div className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2">{L('事件', 'Event')}<p className="mt-1 font-mono text-xs text-slate-600">{selectedPipeline.event_code}</p></div>
                     <span className="text-slate-400">-&gt;</span>
-                    <div className="flex-1 rounded-lg bg-white border border-slate-200 px-3 py-2">
-                      Kafka Topic
-                      <p className="font-mono text-xs text-slate-600 mt-1">{selectedPipeline.topic_name}</p>
-                    </div>
+                    <div className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2">Kafka Topic<p className="mt-1 font-mono text-xs text-slate-600">{selectedPipeline.topic_name}</p></div>
                     <span className="text-slate-400">-&gt;</span>
-                    <div className="flex-1 rounded-lg bg-white border border-slate-200 px-3 py-2">
-                      Flink Job
-                      <p className="font-mono text-xs text-slate-600 mt-1">{selectedPipeline.flink_job_name}</p>
-                    </div>
+                    <div className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2">Flink Job<p className="mt-1 font-mono text-xs text-slate-600">{selectedPipeline.flink_job_name}</p></div>
                   </div>
                 </div>
               </div>
 
               <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Status Snapshot</p>
-                <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm space-y-2">
-                  <p>
-                    Status:{' '}
-                    <span className={`px-2 py-0.5 rounded-full text-xs ${statusClass[selectedPipeline.status] ?? ''}`}>
-                      {selectedPipeline.status}
-                    </span>
-                  </p>
-                  <p>Retry count: {selectedPipeline.retry_count}</p>
-                  <p>Last sync: {selectedPipeline.last_sync_at ? new Date(selectedPipeline.last_sync_at).toLocaleString() : '-'}</p>
-                  <p className="text-xs text-slate-500">Error: {selectedPipeline.error_message || 'None'}</p>
-                  <button
-                    onClick={() => openKnowledgeForPipeline(selectedPipeline.id)}
-                    className="mt-2 rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-xs font-medium hover:bg-emerald-500"
-                  >
-                    Related Docs
-                  </button>
+                <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">{L('状态快照', 'Status Snapshot')}</p>
+                <div className="space-y-2 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+                  <p>{L('状态', 'Status')}: <span className={`rounded-full px-2 py-0.5 text-xs ${statusClass[selectedPipeline.status] ?? ''}`}>{selectedPipeline.status}</span></p>
+                  <p>{L('重试次数', 'Retry count')}: {selectedPipeline.retry_count}</p>
+                  <p>{L('最近同步', 'Last sync')}: {formatDate(selectedPipeline.last_sync_at)}</p>
+                  <button onClick={() => openKnowledgeForPipeline(selectedPipeline.id)} className="mt-2 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-500">{L('相关文档', 'Related Docs')}</button>
                 </div>
               </div>
 
               <div>
-                <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Status Timeline</p>
+                <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">{L('状态时间线', 'Status Timeline')}</p>
                 {history.length === 0 ? (
-                  <p className="text-sm text-slate-500">No history yet.</p>
+                  <p className="text-sm text-slate-500">{L('暂无历史记录。', 'No history yet.')}</p>
                 ) : (
                   <ol className="space-y-2">
                     {history.map((item) => (
                       <li key={item.id} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
-                        <p className="font-semibold text-slate-800">
-                          {item.from_status ?? 'NONE'} {'->'} {item.to_status}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          {new Date(item.synced_at).toLocaleString()} | source={item.source}
-                        </p>
-                        {item.reason && <p className="text-xs text-slate-600 mt-1">{item.reason}</p>}
+                        <p className="font-semibold text-slate-800">{item.from_status ?? 'NONE'} {'->'} {item.to_status}</p>
+                        <p className="mt-1 text-xs text-slate-500">{formatDate(item.synced_at)} | source={item.source}</p>
+                        {item.reason && <p className="mt-1 text-xs text-slate-600">{item.reason}</p>}
                       </li>
                     ))}
                   </ol>
@@ -567,5 +394,3 @@ const Pipelines = () => {
     </div>
   )
 }
-
-export default Pipelines

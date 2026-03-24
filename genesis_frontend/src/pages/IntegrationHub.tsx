@@ -11,6 +11,7 @@ import {
   type IntegrationHubOverviewResponse,
 } from '../services/api'
 import { useLanguage } from '../i18n/language'
+import { useBrowserErrorAlert } from '../hooks/useBrowserErrorAlert'
 
 type Filters = {
   q: string
@@ -53,6 +54,7 @@ const IntegrationHub = () => {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  useBrowserErrorAlert(error)
   const [banner, setBanner] = useState<string | null>(null)
 
   const parseJsonObject = (text: string): Record<string, unknown> | null => {
@@ -267,8 +269,6 @@ const IntegrationHub = () => {
           Refresh
         </button>
       </header>
-
-      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
       {banner && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{banner}</div>}
 
       <section className="grid grid-cols-2 md:grid-cols-5 gap-3">

@@ -10,6 +10,8 @@ import {
   type ReportOverviewResponse,
   type ReportTemplateListResponse,
 } from '../services/api'
+import { useBrowserErrorAlert } from '../hooks/useBrowserErrorAlert'
+import { useLanguage } from '../i18n/language'
 
 const KIND_OPTIONS = ['ALL', 'DASHBOARD', 'REPORT']
 const STATUS_OPTIONS = ['ALL', 'DRAFT', 'PUBLISHED', 'ARCHIVED']
@@ -89,6 +91,10 @@ const renderSimpleWidget = (widget: Record<string, unknown>) => {
 }
 
 const CustomReportsDashboardBuilder = () => {
+  const { locale } = useLanguage()
+  void locale
+  const isZh = false
+  const L = (cn: string, en: string) => (isZh ? cn : en)
   const [overview, setOverview] = useState<ReportOverviewResponse | null>(null)
   const [templates, setTemplates] = useState<ReportTemplateListResponse | null>(null)
   const [listResp, setListResp] = useState<ReportListResponse | null>(null)
@@ -133,6 +139,7 @@ const CustomReportsDashboardBuilder = () => {
   const [loading, setLoading] = useState(false)
   const [operating, setOperating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  useBrowserErrorAlert(error)
   const [message, setMessage] = useState<string | null>(null)
 
   const loadOverview = async () => {
@@ -185,7 +192,7 @@ const CustomReportsDashboardBuilder = () => {
       }
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
-      setError(msg ?? 'Failed to load report center')
+      setError(msg ?? L('????????', 'Failed to load report center'))
     } finally {
       setLoading(false)
     }
@@ -213,7 +220,7 @@ const CustomReportsDashboardBuilder = () => {
       await loadItems()
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
-      setError(msg ?? 'Failed to load items')
+      setError(msg ?? L('??????', 'Failed to load items'))
     } finally {
       setLoading(false)
     }
@@ -236,13 +243,13 @@ const CustomReportsDashboardBuilder = () => {
           .map((row) => row.trim())
           .filter(Boolean),
       })
-      setMessage(`Created item #${created.id}`)
+      setMessage(`${L('?????', 'Created item')} #${created.id}`)
       await Promise.all([loadOverview(), loadItems()])
       setSelectedItemId(created.id)
       setCreateForm((prev) => ({ ...prev, name: '' }))
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
-      setError(msg ?? 'Create item failed')
+      setError(msg ?? L('??????', 'Create item failed'))
     } finally {
       setOperating(false)
     }
@@ -308,8 +315,6 @@ const CustomReportsDashboardBuilder = () => {
           Refresh
         </button>
       </header>
-
-      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
       {message && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>}
 
       <section className="grid grid-cols-2 md:grid-cols-7 gap-3">

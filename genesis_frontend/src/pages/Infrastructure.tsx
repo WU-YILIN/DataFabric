@@ -14,6 +14,8 @@ import {
 import { useNavigate } from 'react-router-dom'
 
 import { GenesisApi, type InfrastructureOverviewResponse } from '../services/api'
+import { useBrowserErrorAlert } from '../hooks/useBrowserErrorAlert'
+import { useLanguage } from '../i18n/language'
 
 const healthClass: Record<string, string> = {
   HEALTHY: 'bg-emerald-100 text-emerald-700',
@@ -28,10 +30,14 @@ const hotClass: Record<string, string> = {
 }
 
 const Infrastructure = () => {
+  const { locale } = useLanguage()
+  const isZh = locale === 'zh-CN'
+  const L = (cn: string, en: string) => (isZh ? cn : en)
   const navigate = useNavigate()
   const [data, setData] = useState<InfrastructureOverviewResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  useBrowserErrorAlert(error)
 
   const [environmentFilter, setEnvironmentFilter] = useState('ALL')
   const [clusterFilter, setClusterFilter] = useState('ALL')
@@ -54,7 +60,7 @@ const Infrastructure = () => {
       })
       setData(overview)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load infrastructure overview')
+      setError(e?.response?.data?.message ?? L('加载基础设施总览失败', 'Failed to load infrastructure overview'))
     } finally {
       setLoading(false)
     }
@@ -89,9 +95,9 @@ const Infrastructure = () => {
     <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700 space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Infrastructure</h2>
+          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{L('基础设施', 'Infrastructure')}</h2>
           <p className="text-slate-500 text-base">
-            Kafka / Flink / Storage health overview with cluster and environment filters.
+            {L('结合环境和集群筛选查看 Kafka / Flink / Storage 健康概览。', 'Kafka / Flink / Storage health overview with cluster and environment filters.')}
           </p>
         </div>
         <button
@@ -100,24 +106,20 @@ const Infrastructure = () => {
           className="rounded-xl bg-slate-900 text-white px-4 py-2.5 font-medium hover:bg-slate-800 disabled:opacity-60 flex items-center gap-2"
         >
           <RefreshCw size={16} />
-          Refresh
+          {L('刷新', 'Refresh')}
         </button>
       </header>
-
-      {error && (
-        <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>
-      )}
 
       <section className="glass rounded-3xl border border-slate-200/60 p-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
           <div>
-            <label className="text-xs text-slate-500 uppercase tracking-wide">Environment</label>
+            <label className="text-xs text-slate-500 uppercase tracking-wide">{L('环境', 'Environment')}</label>
             <select
               value={environmentFilter}
               onChange={(e) => setEnvironmentFilter(e.target.value)}
               className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700"
             >
-              <option value="ALL">All Environments</option>
+              <option value="ALL">{L('全部环境', 'All Environments')}</option>
               {filterOptions.environments.map((item) => (
                 <option key={item} value={item}>
                   {item}
@@ -126,13 +128,13 @@ const Infrastructure = () => {
             </select>
           </div>
           <div>
-            <label className="text-xs text-slate-500 uppercase tracking-wide">Cluster</label>
+            <label className="text-xs text-slate-500 uppercase tracking-wide">{L('集群', 'Cluster')}</label>
             <select
               value={clusterFilter}
               onChange={(e) => setClusterFilter(e.target.value)}
               className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700"
             >
-              <option value="ALL">All Clusters</option>
+              <option value="ALL">{L('全部集群', 'All Clusters')}</option>
               {filterOptions.clusters.map((item) => (
                 <option key={item} value={item}>
                   {item}
@@ -144,10 +146,10 @@ const Infrastructure = () => {
             onClick={() => void loadOverview()}
             className="rounded-xl bg-cyan-600 text-white px-4 py-2.5 font-medium hover:bg-cyan-500"
           >
-            Apply Filters
+            {L('应用筛选', 'Apply Filters')}
           </button>
           <div className="text-xs text-slate-500 md:text-right">
-            Collected at:
+            {L('采集时间', 'Collected at')}:
             {' '}
             {data?.collected_at ? new Date(data.collected_at).toLocaleString() : '-'}
           </div>

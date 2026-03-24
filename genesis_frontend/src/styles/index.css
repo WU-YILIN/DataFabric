@@ -2,6 +2,34 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --df-bg: #f5f2ea;
+  --df-surface: #fffdf8;
+  --df-surface-2: #f8f5ee;
+  --df-border: #ddd6c8;
+  --df-border-strong: #bfb6a5;
+  --df-text: #1f2933;
+  --df-text-muted: #5e6a76;
+  --df-text-soft: #7d8792;
+  --df-ink: #153b52;
+  --df-cyan: #157a8a;
+  --df-moss: #4d6b4a;
+  --df-amber: #a96b12;
+  --df-rose: #b54352;
+  --df-radius-lg: 18px;
+  --df-radius-xl: 24px;
+  --df-shadow-soft: 0 12px 30px rgba(31, 41, 51, 0.06);
+  font-family:
+    "IBM Plex Sans",
+    "Segoe UI",
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Microsoft YaHei",
+    sans-serif;
+  background-color: var(--df-bg);
+  color: var(--df-text);
+}
+
 @layer utilities {
   .glass {
     @apply backdrop-blur-xl bg-white/70 border border-white/20 shadow-sm;
@@ -22,19 +50,86 @@
   .ios-btn-primary {
     @apply ios-btn bg-ios-blue text-white hover:bg-ios-blue/90;
   }
+
+  .df-surface {
+    background: var(--df-surface);
+    border: 1px solid var(--df-border);
+    border-radius: var(--df-radius-xl);
+    box-shadow: var(--df-shadow-soft);
+  }
+
+  .df-surface-muted {
+    background: var(--df-surface-2);
+    border: 1px solid var(--df-border);
+    border-radius: var(--df-radius-lg);
+  }
+
+  .df-display {
+    font-family:
+      "Space Grotesk",
+      "IBM Plex Sans",
+      "Segoe UI",
+      sans-serif;
+  }
+
+  .df-body {
+    font-family:
+      "IBM Plex Sans",
+      "Segoe UI",
+      "PingFang SC",
+      "Microsoft YaHei",
+      sans-serif;
+  }
+
+  .df-mono {
+    font-family:
+      "IBM Plex Mono",
+      "Cascadia Code",
+      "Consolas",
+      monospace;
+  }
 }
 
 body {
-  @apply bg-ios-bg text-gray-900 antialiased selection:bg-ios-blue/30;
-}
-
-:root {
-  font-family: Inter, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', system-ui, Avenir, Helvetica, Arial, sans-serif;
-  background-color: #f9fafb;
+  @apply antialiased selection:bg-slate-300/40;
+  background-color: var(--df-bg);
+  color: var(--df-text);
 }
 
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+}
+
+/* Legacy page compatibility: pull older admin pages into the new design system
+   without rewriting every control in one pass. */
+.glass {
+  background: color-mix(in srgb, var(--df-surface) 86%, white) !important;
+  border-color: var(--df-border) !important;
+  box-shadow: var(--df-shadow-soft) !important;
+}
+
+[class*="border-slate-200"][class*="bg-white"] {
+  border-color: var(--df-border) !important;
+  background-color: var(--df-surface) !important;
+}
+
+[class*="bg-slate-50"] {
+  background-color: var(--df-surface-2) !important;
+}
+
+[class*="text-slate-950"],
+[class*="text-slate-900"] {
+  color: var(--df-text) !important;
+}
+
+[class*="text-slate-700"],
+[class*="text-slate-600"],
+[class*="text-slate-500"] {
+  color: var(--df-text-muted) !important;
+}
+
+[class*="text-slate-400"] {
+  color: var(--df-text-soft) !important;
 }

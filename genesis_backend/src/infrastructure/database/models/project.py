@@ -70,6 +70,66 @@ class Project(Base, TimestampMixin):
     incident_cases: Mapped[list["IncidentCase"]] = relationship(
         back_populates="project", cascade="all, delete-orphan"
     )
+    observation_source_profiles: Mapped[list["ObservationSourceProfile"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    inference_candidates: Mapped[list["InferenceCandidate"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    governance_decision_records: Mapped[list["GovernanceDecisionRecord"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    contract_artifacts: Mapped[list["ContractArtifact"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    external_data_sources: Mapped[list["ExternalDataSource"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    source_instances: Mapped[list["SourceInstance"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    source_assets: Mapped[list["SourceAsset"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    source_fields: Mapped[list["SourceField"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    source_field_profiles: Mapped[list["SourceFieldProfile"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    source_change_events: Mapped[list["SourceChangeEvent"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    source_candidates: Mapped[list["SourceCandidate"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    semantic_candidates: Mapped[list["SemanticCandidate"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    source_telemetry_samples: Mapped[list["SourceTelemetrySample"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    source_sync_runs: Mapped[list["SourceSyncRun"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    query_intents: Mapped[list["QueryIntent"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    query_plans: Mapped[list["QueryPlan"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    query_runs: Mapped[list["QueryRun"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    execution_stages: Mapped[list["ExecutionStage"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    executed_sqls: Mapped[list["ExecutedSQL"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
+    materialization_artifacts: Mapped[list["MaterializationArtifact"]] = relationship(
+        back_populates="project", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Project(id={self.id}, name='{self.name}')>"

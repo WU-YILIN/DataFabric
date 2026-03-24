@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { ChevronRight, Filter, Play, Plus, Search, X } from 'lucide-react'
-
 import { clsx } from 'clsx'
 import { useNavigate } from 'react-router-dom'
+
 import {
   GenesisApi,
   type DataQualityRule,
@@ -11,6 +11,7 @@ import {
   type DataQualityRuleOptionEvent,
 } from '../services/api'
 import { useLanguage } from '../i18n/language'
+import { useBrowserErrorAlert } from '../hooks/useBrowserErrorAlert'
 
 type RuleFormState = {
   name: string
@@ -40,16 +41,19 @@ const defaultRuleForm: RuleFormState = {
   description: '',
 }
 
-const DataQuality = () => {
+export default function DataQuality() {
   const navigate = useNavigate()
   const { locale } = useLanguage()
   const isZh = locale === 'zh-CN'
+  const L = (cn: string, en: string) => (isZh ? cn : en)
+
   const [rules, setRules] = useState<DataQualityRule[]>([])
   const [events, setEvents] = useState<DataQualityRuleOptionEvent[]>([])
   const [assets, setAssets] = useState<DataQualityRuleOptionAsset[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  useBrowserErrorAlert(error)
 
   const [q, setQ] = useState('')
   const [ruleTypeFilter, setRuleTypeFilter] = useState('')
@@ -71,13 +75,18 @@ const DataQuality = () => {
   const assetMap = useMemo(() => new Map(assets.map((item) => [item.id, item])), [assets])
   const eventMap = useMemo(() => new Map(events.map((item) => [item.id, item])), [events])
 
+  const formatDate = (value?: string | null) => {
+    if (!value) return '-'
+    return new Date(value).toLocaleString(isZh ? 'zh-CN' : 'en-US', { hour12: false })
+  }
+
   const loadOptions = async () => {
     try {
       const data = await GenesisApi.getDataQualityRuleOptions()
       setEvents(data.events)
       setAssets(data.assets)
     } catch {
-      // keep page usable even if options fail
+      // keep page usable
     }
   }
 
@@ -95,7 +104,7 @@ const DataQuality = () => {
       })
       setRules(rows)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? (isZh ? '加载数据质量规则失败' : 'Failed to load data quality rules'))
+      setError(e?.response?.data?.message ?? L('加载数据质量规则失败', 'Failed to load data quality rules'))
     } finally {
       setLoading(false)
     }
@@ -110,7 +119,7 @@ const DataQuality = () => {
       const data = await GenesisApi.getDataQualityRuleDetail(ruleId)
       setDetail(data)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? (isZh ? '加载规则详情失败' : 'Failed to load rule detail'))
+      setError(e?.response?.data?.message ?? L('加载规则详情失败', 'Failed to load rule detail'))
     } finally {
       setDetailLoading(false)
     }
@@ -118,7 +127,6 @@ const DataQuality = () => {
 
   useEffect(() => {
     void Promise.all([loadOptions(), loadRules()])
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const openCreateModal = () => {
@@ -154,8 +162,9 @@ const DataQuality = () => {
       try {
         parsedThreshold = JSON.parse(formState.threshold || '{}')
       } catch {
-        throw new Error('Threshold must be valid JSON')
+        throw new Error(L('阈值必须是合法 JSON', 'Threshold must be valid JSON'))
       }
+
       const alertChannels = formState.alert_channels
         .split(',')
         .map((item) => item.trim())
@@ -177,18 +186,17 @@ const DataQuality = () => {
 
       if (editingRule) {
         await GenesisApi.updateDataQualityRule(editingRule.id, payload)
-        setNotice('Rule updated')
+        setNotice(L('规则已更新', 'Rule updated'))
       } else {
         await GenesisApi.createDataQualityRule(payload)
-        setNotice('Rule created')
+        setNotice(L('规则已创建', 'Rule created'))
       }
+
       setFormOpen(false)
       await loadRules()
-      if (editingRule?.id) {
-        await loadRuleDetail(editingRule.id)
-      }
+      if (editingRule?.id) await loadRuleDetail(editingRule.id)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? e?.message ?? 'Failed to save rule')
+      setError(e?.response?.data?.message ?? e?.message ?? L('保存规则失败', 'Failed to save rule'))
     } finally {
       setFormSubmitting(false)
     }
@@ -199,16 +207,12 @@ const DataQuality = () => {
     setError(null)
     setNotice(null)
     try {
-      const result = await GenesisApi.runDataQualityRule(ruleId, {
-        trigger_source: 'manual',
-      })
-      setNotice(`Rule #${ruleId} executed: ${result.result}`)
+      const result = await GenesisApi.runDataQualityRule(ruleId, { trigger_source: 'manual' })
+      setNotice(`${L('规则执行完成', 'Rule executed')} #${ruleId}: ${result.result}`)
       await loadRules()
-      if (selectedRuleId === ruleId) {
-        await loadRuleDetail(ruleId)
-      }
+      if (selectedRuleId === ruleId) await loadRuleDetail(ruleId)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to run rule')
+      setError(e?.response?.data?.message ?? L('执行规则失败', 'Failed to run rule'))
     } finally {
       setRunLoadingRuleId(null)
     }
@@ -231,89 +235,49 @@ const DataQuality = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto animate-in fade-in slide-in-from-bottom-8 duration-700">
+    <div className="mx-auto max-w-7xl animate-in fade-in slide-in-from-bottom-8 duration-700">
       <section className="mb-4 rounded-2xl border border-slate-200 bg-white/80 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-slate-900">{isZh ? '下一步建议' : 'Recommended Next Step'}</p>
-            <p className="text-xs text-slate-600">
-              {isZh ? '规则配置后先执行一次验证，再到监控页确认告警链路。' : 'Run validation once after rule setup, then verify alert pipeline in monitoring.'}
-            </p>
+            <p className="text-sm font-semibold text-slate-900">{L('推荐下一步', 'Recommended Next Step')}</p>
+            <p className="text-xs text-slate-600">{L('规则配置完成后先执行一次校验，再到监控页确认告警链路。', 'Run validation once after rule setup, then verify alert pipeline in monitoring.')}</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={() => navigate('/monitoring')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
-              {isZh ? '去监控' : 'Go Monitoring'}
-            </button>
-            <button onClick={() => navigate('/cost')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">
-              {isZh ? '去成本' : 'Go Cost'}
-            </button>
+            <button onClick={() => navigate('/monitoring')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">{L('前往监控', 'Go Monitoring')}</button>
+            <button onClick={() => navigate('/cost')} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs hover:bg-slate-50">{L('前往成本', 'Go Cost')}</button>
           </div>
         </div>
       </section>
-      <div className="flex justify-between items-center mb-6">
+
+      <div className="mb-6 flex items-center justify-between">
         <header>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{isZh ? '数据质量' : 'Data Quality'}</h2>
-          <p className="text-slate-500 text-base">Define rules, execute checks, and triage quality alerts.</p>
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900">{L('数据质量', 'Data Quality')}</h2>
+          <p className="text-base text-slate-500">{L('定义规则、执行检查并处置质量告警。', 'Define rules, execute checks, and triage quality alerts.')}</p>
         </header>
-        <button
-          onClick={openCreateModal}
-          className="rounded-xl bg-cyan-600 text-white px-4 py-2.5 font-semibold flex items-center gap-2 hover:bg-cyan-500"
-        >
+        <button onClick={openCreateModal} className="flex items-center gap-2 rounded-xl bg-cyan-600 px-4 py-2.5 font-semibold text-white hover:bg-cyan-500">
           <Plus size={18} />
-          New Rule
+          {L('新建规则', 'New Rule')}
         </button>
       </div>
 
-      {error && (
-        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700 text-sm">{error}</div>
-      )}
-      {notice && (
-        <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700 text-sm">
-          {notice}
-        </div>
-      )}
+      {notice && <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{notice}</div>}
 
-      <div className="glass rounded-3xl overflow-hidden shadow-sm border border-gray-200/50">
-        <div className="p-4 border-b border-gray-200/50 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-7 gap-3 bg-gray-50/60">
+      <div className="overflow-hidden rounded-3xl border border-gray-200/50 shadow-sm glass">
+        <div className="grid grid-cols-1 gap-3 border-b border-gray-200/50 bg-gray-50/60 p-4 md:grid-cols-2 xl:grid-cols-7">
           <div className="relative md:col-span-2 xl:col-span-2">
             <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search rule name / type / field"
-              className="w-full pl-9 pr-3 py-2.5 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-cyan-300/60"
-            />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={L('搜索规则名称 / 类型 / 字段', 'Search rule name / type / field')} className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 outline-none focus:ring-2 focus:ring-cyan-300/60" />
           </div>
-          <select
-            value={assetIdFilter}
-            onChange={(e) => setAssetIdFilter(e.target.value)}
-            className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl outline-none"
-          >
-            <option value="">All Assets</option>
-            {assets.map((asset) => (
-              <option key={asset.id} value={asset.id}>
-                {asset.name} ({asset.asset_type})
-              </option>
-            ))}
+          <select value={assetIdFilter} onChange={(e) => setAssetIdFilter(e.target.value)} className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 outline-none">
+            <option value="">{L('全部资产', 'All Assets')}</option>
+            {assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.name} ({asset.asset_type})</option>)}
           </select>
-          <select
-            value={eventIdFilter}
-            onChange={(e) => setEventIdFilter(e.target.value)}
-            className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl outline-none"
-          >
-            <option value="">All Events</option>
-            {events.map((event) => (
-              <option key={event.id} value={event.id}>
-                {event.code}
-              </option>
-            ))}
+          <select value={eventIdFilter} onChange={(e) => setEventIdFilter(e.target.value)} className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 outline-none">
+            <option value="">{L('全部事件', 'All Events')}</option>
+            {events.map((event) => <option key={event.id} value={event.id}>{event.code}</option>)}
           </select>
-          <select
-            value={ruleTypeFilter}
-            onChange={(e) => setRuleTypeFilter(e.target.value)}
-            className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl outline-none"
-          >
-            <option value="">All Types</option>
+          <select value={ruleTypeFilter} onChange={(e) => setRuleTypeFilter(e.target.value)} className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 outline-none">
+            <option value="">{L('全部类型', 'All Types')}</option>
             <option value="NOT_NULL">NOT_NULL</option>
             <option value="UNIQUENESS">UNIQUENESS</option>
             <option value="VALUE_RANGE">VALUE_RANGE</option>
@@ -321,110 +285,64 @@ const DataQuality = () => {
             <option value="ENUM">ENUM</option>
             <option value="CUSTOM_SQL">CUSTOM_SQL</option>
           </select>
-          <select
-            value={severityFilter}
-            onChange={(e) => setSeverityFilter(e.target.value)}
-            className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl outline-none"
-          >
-            <option value="">All Severity</option>
+          <select value={severityFilter} onChange={(e) => setSeverityFilter(e.target.value)} className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 outline-none">
+            <option value="">{L('全部等级', 'All Severity')}</option>
             <option value="LOW">LOW</option>
             <option value="MEDIUM">MEDIUM</option>
             <option value="HIGH">HIGH</option>
             <option value="CRITICAL">CRITICAL</option>
           </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl outline-none"
-          >
-            <option value="">All Status</option>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 outline-none">
+            <option value="">{L('全部状态', 'All Status')}</option>
             <option value="ACTIVE">ACTIVE</option>
             <option value="PAUSED">PAUSED</option>
             <option value="DRAFT">DRAFT</option>
             <option value="DEPRECATED">DEPRECATED</option>
           </select>
-          <button
-            onClick={loadRules}
-            className="md:col-span-2 xl:col-span-7 rounded-xl bg-slate-900 text-white px-4 py-2.5 font-medium flex items-center justify-center gap-2 hover:bg-slate-800"
-          >
+          <button onClick={() => void loadRules()} className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 font-medium text-white hover:bg-slate-800 md:col-span-2 xl:col-span-7">
             <Filter size={16} />
-            Apply Filters
+            {L('应用筛选', 'Apply Filters')}
           </button>
         </div>
 
         <div className="bg-white/60">
           {loading ? (
-            <div className="p-12 text-center text-gray-400">Loading rules...</div>
+            <div className="p-12 text-center text-gray-400">{L('正在加载规则...', 'Loading rules...')}</div>
           ) : (
             <ul className="divide-y divide-gray-100">
               {rules.map((rule) => (
-                <li
-                  key={rule.id}
-                  className="group hover:bg-cyan-50/50 transition-colors cursor-pointer"
-                  onClick={() => void loadRuleDetail(rule.id)}
-                >
-                  <div className="flex items-center p-4 sm:px-6 gap-3">
-                    <div className="min-w-0 flex-1 grid grid-cols-1 md:grid-cols-7 gap-3 items-center">
+                <li key={rule.id} className="group cursor-pointer transition-colors hover:bg-cyan-50/50" onClick={() => void loadRuleDetail(rule.id)}>
+                  <div className="flex items-center gap-3 p-4 sm:px-6">
+                    <div className="min-w-0 flex-1 grid grid-cols-1 items-center gap-3 md:grid-cols-7">
                       <div className="md:col-span-2">
-                        <p className="text-sm font-semibold text-slate-900 truncate">{rule.name}</p>
-                        <p className="text-xs text-slate-500 truncate">
+                        <p className="truncate text-sm font-semibold text-slate-900">{rule.name}</p>
+                        <p className="truncate text-xs text-slate-500">
                           {rule.asset?.name ?? assetMap.get(rule.asset_id ?? -1)?.name ?? '-'} | {rule.event?.code ?? eventMap.get(rule.event_id)?.code ?? '-'}
                         </p>
                       </div>
                       <div className="text-sm text-slate-700">{rule.rule_type}</div>
                       <div className="text-sm text-slate-700">{rule.target_field || '-'}</div>
                       <div>
-                        <span
-                          className={clsx(
-                            'px-2 py-1 rounded-full text-xs font-semibold',
-                            rule.severity === 'CRITICAL'
-                              ? 'bg-rose-100 text-rose-700'
-                              : rule.severity === 'HIGH'
-                                ? 'bg-amber-100 text-amber-700'
-                                : rule.severity === 'MEDIUM'
-                                  ? 'bg-indigo-100 text-indigo-700'
-                                  : 'bg-slate-100 text-slate-700',
-                          )}
-                        >
+                        <span className={clsx('rounded-full px-2 py-1 text-xs font-semibold', rule.severity === 'CRITICAL' ? 'bg-rose-100 text-rose-700' : rule.severity === 'HIGH' ? 'bg-amber-100 text-amber-700' : rule.severity === 'MEDIUM' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-700')}>
                           {rule.severity}
                         </span>
                       </div>
                       <div>
-                        <span
-                          className={clsx(
-                            'px-2 py-1 rounded-full text-xs font-semibold',
-                            rule.status === 'ACTIVE'
-                              ? 'bg-emerald-100 text-emerald-700'
-                              : rule.status === 'PAUSED'
-                                ? 'bg-amber-100 text-amber-700'
-                                : 'bg-slate-100 text-slate-700',
-                          )}
-                        >
+                        <span className={clsx('rounded-full px-2 py-1 text-xs font-semibold', rule.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : rule.status === 'PAUSED' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700')}>
                           {rule.status}
                         </span>
                       </div>
-                      <div className="text-sm text-slate-700">
-                        {rule.last_run ? `${Math.round(rule.last_run.pass_rate * 100)}%` : '-'}
-                      </div>
+                      <div className="text-sm text-slate-700">{rule.last_run ? `${Math.round(rule.last_run.pass_rate * 100)}%` : '-'}</div>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        void runRule(rule.id)
-                      }}
-                      disabled={runLoadingRuleId === rule.id}
-                      className="rounded-lg bg-indigo-100 text-indigo-700 px-2.5 py-1.5 text-xs hover:bg-indigo-200 disabled:opacity-50 flex items-center gap-1"
-                    >
+                    <button onClick={(e) => { e.stopPropagation(); void runRule(rule.id) }} disabled={runLoadingRuleId === rule.id} className="flex items-center gap-1 rounded-lg bg-indigo-100 px-2.5 py-1.5 text-xs text-indigo-700 hover:bg-indigo-200 disabled:opacity-50">
                       <Play size={12} />
-                      Run
+                      {L('运行', 'Run')}
                     </button>
                     <ChevronRight size={18} className="text-gray-300 group-hover:text-cyan-600" />
                   </div>
                 </li>
               ))}
-              {!loading && rules.length === 0 && (
-                <li className="p-10 text-center text-slate-500">No rules matched current filters.</li>
-              )}
+              {!loading && rules.length === 0 && <li className="p-10 text-center text-slate-500">{L('当前筛选条件下没有规则。', 'No rules matched current filters.')}</li>}
             </ul>
           )}
         </div>
@@ -432,134 +350,77 @@ const DataQuality = () => {
 
       {selectedRuleId && (
         <>
-          <div
-            className="fixed inset-0 bg-black/25 z-40"
-            onClick={() => {
-              setSelectedRuleId(null)
-              setDetail(null)
-            }}
-          />
-          <aside className="fixed right-0 top-0 h-screen w-[620px] bg-white z-50 border-l border-slate-200 shadow-2xl overflow-auto">
-            <div className="p-5 border-b border-slate-200 flex items-center justify-between">
-              <h3 className="font-bold text-slate-900 text-lg">DQ Rule Detail</h3>
-              <button
-                onClick={() => {
-                  setSelectedRuleId(null)
-                  setDetail(null)
-                }}
-                className="p-2 rounded-lg hover:bg-slate-100"
-              >
-                <X size={16} />
-              </button>
+          <div className="fixed inset-0 z-40 bg-black/25" onClick={() => { setSelectedRuleId(null); setDetail(null) }} />
+          <aside className="fixed right-0 top-0 z-50 h-screen w-[620px] overflow-auto border-l border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 p-5">
+              <h3 className="text-lg font-bold text-slate-900">{L('质量规则详情', 'DQ Rule Detail')}</h3>
+              <button onClick={() => { setSelectedRuleId(null); setDetail(null) }} className="rounded-lg p-2 hover:bg-slate-100"><X size={16} /></button>
             </div>
 
             {detailLoading || !detail ? (
-              <div className="p-8 text-slate-500">Loading detail...</div>
+              <div className="p-8 text-slate-500">{L('正在加载详情...', 'Loading detail...')}</div>
             ) : (
-              <div className="p-5 space-y-6">
+              <div className="space-y-6 p-5">
                 <div className="space-y-1">
-                  <p className="text-xs text-slate-500 uppercase tracking-wide">Rule Config</p>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">{L('规则配置', 'Rule Config')}</p>
                   <p className="text-xl font-semibold text-slate-900">{detail.rule.name}</p>
-                  <p className="text-sm text-slate-600">
-                    Type: {detail.rule.rule_type} | Field: {detail.rule.target_field || '-'} | Operator: {detail.rule.operator || '-'}
-                  </p>
-                  <p className="text-sm text-slate-600">
-                    Severity: {detail.rule.severity} | Status: {detail.rule.status} | Version: {detail.rule.version}
-                  </p>
-                  <p className="text-sm text-slate-600">
-                    Asset: {detail.rule.asset?.name || '-'} | Event: {detail.rule.event?.code || '-'}
-                  </p>
-                  <p className="text-sm text-slate-600">
-                    Channels: {detail.rule.alert_channels?.length ? detail.rule.alert_channels.join(', ') : '-'}
-                  </p>
+                  <p className="text-sm text-slate-600">{L('类型', 'Type')}: {detail.rule.rule_type} | {L('字段', 'Field')}: {detail.rule.target_field || '-'} | {L('操作符', 'Operator')}: {detail.rule.operator || '-'}</p>
+                  <p className="text-sm text-slate-600">{L('严重级别', 'Severity')}: {detail.rule.severity} | {L('状态', 'Status')}: {detail.rule.status} | {L('版本', 'Version')}: {detail.rule.version}</p>
+                  <p className="text-sm text-slate-600">{L('资产', 'Asset')}: {detail.rule.asset?.name || '-'} | {L('事件', 'Event')}: {detail.rule.event?.code || '-'}</p>
+                  <p className="text-sm text-slate-600">{L('告警通道', 'Channels')}: {detail.rule.alert_channels?.length ? detail.rule.alert_channels.join(', ') : '-'}</p>
                   <p className="text-sm text-slate-600">{detail.rule.description || '-'}</p>
                 </div>
 
                 <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Threshold</p>
-                  <pre className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs overflow-auto text-slate-700">
-                    {JSON.stringify(detail.rule.threshold, null, 2)}
-                  </pre>
+                  <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">{L('阈值', 'Threshold')}</p>
+                  <pre className="overflow-auto rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700">{JSON.stringify(detail.rule.threshold, null, 2)}</pre>
                 </div>
 
                 <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Recent Results</p>
+                  <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">{L('最近结果', 'Recent Results')}</p>
                   <div className="space-y-2">
-                    {detail.recent_results.length === 0 && <p className="text-sm text-slate-500">No execution results yet.</p>}
+                    {detail.recent_results.length === 0 && <p className="text-sm text-slate-500">{L('暂无执行结果。', 'No execution results yet.')}</p>}
                     {detail.recent_results.map((item) => (
-                      <div key={item.id} className="rounded-xl border border-slate-200 p-3 bg-white text-sm">
-                        <p className="font-semibold text-slate-800">
-                          {item.result} | pass_rate={Math.round(item.pass_rate * 100)}%
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          checked={item.checked_count} | failed={item.failed_count} | {item.triggered_by}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">{new Date(item.executed_at).toLocaleString()}</p>
+                      <div key={item.id} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+                        <p className="font-semibold text-slate-800">{item.result} | pass_rate={Math.round(item.pass_rate * 100)}%</p>
+                        <p className="mt-1 text-xs text-slate-500">checked={item.checked_count} | failed={item.failed_count} | {item.triggered_by}</p>
+                        <p className="mt-1 text-xs text-slate-500">{formatDate(item.executed_at)}</p>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Alerts</p>
+                  <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">{L('告警', 'Alerts')}</p>
                   <div className="space-y-2">
-                    {detail.alerts.length === 0 && <p className="text-sm text-slate-500">No related alerts.</p>}
+                    {detail.alerts.length === 0 && <p className="text-sm text-slate-500">{L('暂无关联告警。', 'No related alerts.')}</p>}
                     {detail.alerts.map((item) => (
-                      <div key={item.id} className="rounded-xl border border-slate-200 p-3 bg-white text-sm">
+                      <div key={item.id} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
                         <p className="font-semibold text-slate-800">{item.title}</p>
-                        <p className="text-xs text-slate-500 mt-1">
-                          {item.severity} | {item.status} | {new Date(item.created_at).toLocaleString()}
-                        </p>
+                        <p className="mt-1 text-xs text-slate-500">{item.severity} | {item.status} | {formatDate(item.created_at)}</p>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-xs text-slate-500 uppercase tracking-wide mb-2">Version History</p>
+                  <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">{L('版本历史', 'Version History')}</p>
                   <div className="space-y-2">
-                    {detail.version_history.length === 0 && <p className="text-sm text-slate-500">No rule updates yet.</p>}
+                    {detail.version_history.length === 0 && <p className="text-sm text-slate-500">{L('暂无规则更新历史。', 'No rule updates yet.')}</p>}
                     {detail.version_history.map((item) => (
-                      <div key={item.id} className="rounded-xl border border-slate-200 p-3 bg-white text-sm">
-                        <p className="font-semibold text-slate-800">
-                          {item.from_version}
-                          {' -> '}
-                          {item.to_version}
-                        </p>
-                        <pre className="mt-2 text-[11px] bg-slate-50 rounded p-2 overflow-auto">
-                          {JSON.stringify(item.diff, null, 2)}
-                        </pre>
+                      <div key={item.id} className="rounded-xl border border-slate-200 bg-white p-3 text-sm">
+                        <p className="font-semibold text-slate-800">{item.from_version} {' -> '} {item.to_version}</p>
+                        <pre className="mt-2 overflow-auto rounded bg-slate-50 p-2 text-[11px]">{JSON.stringify(item.diff, null, 2)}</pre>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 <div className="grid grid-cols-4 gap-3">
-                  <button
-                    onClick={() => openEditModal(detail.rule)}
-                    className="rounded-xl bg-slate-900 text-white px-3 py-2.5 font-medium hover:bg-slate-800"
-                  >
-                    Edit Rule
-                  </button>
-                  <button
-                    onClick={() => void runRule(detail.rule.id)}
-                    disabled={runLoadingRuleId === detail.rule.id}
-                    className="rounded-xl bg-indigo-600 text-white px-3 py-2.5 font-medium hover:bg-indigo-500 disabled:opacity-60"
-                  >
-                    Run Rule
-                  </button>
-                  <button
-                    onClick={() => openExploreForRule(detail.rule.id)}
-                    className="rounded-xl bg-indigo-600 text-white px-3 py-2.5 font-medium hover:bg-indigo-500"
-                  >
-                    Open in Explore
-                  </button>
-                  <button
-                    onClick={() => openKnowledgeForRule(detail.rule.id)}
-                    className="rounded-xl bg-emerald-600 text-white px-3 py-2.5 font-medium hover:bg-emerald-500"
-                  >
-                    Related Docs
-                  </button>
+                  <button onClick={() => openEditModal(detail.rule)} className="rounded-xl bg-slate-900 px-3 py-2.5 font-medium text-white hover:bg-slate-800">{L('编辑规则', 'Edit Rule')}</button>
+                  <button onClick={() => void runRule(detail.rule.id)} disabled={runLoadingRuleId === detail.rule.id} className="rounded-xl bg-indigo-600 px-3 py-2.5 font-medium text-white hover:bg-indigo-500 disabled:opacity-60">{L('运行规则', 'Run Rule')}</button>
+                  <button onClick={() => openExploreForRule(detail.rule.id)} className="rounded-xl bg-indigo-600 px-3 py-2.5 font-medium text-white hover:bg-indigo-500">{L('在 Explore 中打开', 'Open in Explore')}</button>
+                  <button onClick={() => openKnowledgeForRule(detail.rule.id)} className="rounded-xl bg-emerald-600 px-3 py-2.5 font-medium text-white hover:bg-emerald-500">{L('相关文档', 'Related Docs')}</button>
                 </div>
               </div>
             )}
@@ -569,52 +430,25 @@ const DataQuality = () => {
 
       {formOpen && (
         <>
-          <div className="fixed inset-0 bg-black/30 z-50" onClick={() => setFormOpen(false)} />
+          <div className="fixed inset-0 z-50 bg-black/30" onClick={() => setFormOpen(false)} />
           <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
-            <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white shadow-2xl p-5 space-y-4 max-h-[95vh] overflow-auto">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-slate-900">{editingRule ? 'Edit Rule' : 'Create Rule'}</h3>
-                <button onClick={() => setFormOpen(false)} className="p-2 rounded hover:bg-slate-100">
-                  <X size={16} />
-                </button>
+            <div className="max-h-[95vh] w-full max-w-3xl overflow-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-slate-900">{editingRule ? L('编辑规则', 'Edit Rule') : L('创建规则', 'Create Rule')}</h3>
+                <button onClick={() => setFormOpen(false)} className="rounded p-2 hover:bg-slate-100"><X size={16} /></button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <input
-                  value={formState.name}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, name: e.target.value }))}
-                  placeholder="Rule Name"
-                  className="px-3 py-2.5 border border-slate-200 rounded-xl outline-none md:col-span-2"
-                />
-                <select
-                  value={formState.asset_id}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, asset_id: e.target.value }))}
-                  className="px-3 py-2.5 border border-slate-200 rounded-xl outline-none"
-                >
-                  <option value="">No Asset</option>
-                  {assets.map((asset) => (
-                    <option key={asset.id} value={asset.id}>
-                      {asset.name} ({asset.asset_type})
-                    </option>
-                  ))}
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <input value={formState.name} onChange={(e) => setFormState((prev) => ({ ...prev, name: e.target.value }))} placeholder={L('规则名称', 'Rule Name')} className="md:col-span-2 rounded-xl border border-slate-200 px-3 py-2.5 outline-none" />
+                <select value={formState.asset_id} onChange={(e) => setFormState((prev) => ({ ...prev, asset_id: e.target.value }))} className="rounded-xl border border-slate-200 px-3 py-2.5 outline-none">
+                  <option value="">{L('无资产', 'No Asset')}</option>
+                  {assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.name} ({asset.asset_type})</option>)}
                 </select>
-                <select
-                  value={formState.event_id}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, event_id: e.target.value }))}
-                  className="px-3 py-2.5 border border-slate-200 rounded-xl outline-none"
-                >
-                  <option value="">Auto derive from asset</option>
-                  {events.map((event) => (
-                    <option key={event.id} value={event.id}>
-                      {event.code} ({event.governance_status})
-                    </option>
-                  ))}
+                <select value={formState.event_id} onChange={(e) => setFormState((prev) => ({ ...prev, event_id: e.target.value }))} className="rounded-xl border border-slate-200 px-3 py-2.5 outline-none">
+                  <option value="">{L('从资产自动推断', 'Auto derive from asset')}</option>
+                  {events.map((event) => <option key={event.id} value={event.id}>{event.code} ({event.governance_status})</option>)}
                 </select>
-                <select
-                  value={formState.rule_type}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, rule_type: e.target.value }))}
-                  className="px-3 py-2.5 border border-slate-200 rounded-xl outline-none"
-                >
+                <select value={formState.rule_type} onChange={(e) => setFormState((prev) => ({ ...prev, rule_type: e.target.value }))} className="rounded-xl border border-slate-200 px-3 py-2.5 outline-none">
                   <option value="NOT_NULL">NOT_NULL</option>
                   <option value="UNIQUENESS">UNIQUENESS</option>
                   <option value="VALUE_RANGE">VALUE_RANGE</option>
@@ -622,71 +456,29 @@ const DataQuality = () => {
                   <option value="ENUM">ENUM</option>
                   <option value="CUSTOM_SQL">CUSTOM_SQL</option>
                 </select>
-                <input
-                  value={formState.target_field}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, target_field: e.target.value }))}
-                  placeholder="Target Field"
-                  className="px-3 py-2.5 border border-slate-200 rounded-xl outline-none"
-                />
-                <input
-                  value={formState.operator}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, operator: e.target.value }))}
-                  placeholder="Operator"
-                  className="px-3 py-2.5 border border-slate-200 rounded-xl outline-none"
-                />
-                <input
-                  value={formState.alert_channels}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, alert_channels: e.target.value }))}
-                  placeholder="Alert Channels (comma separated)"
-                  className="px-3 py-2.5 border border-slate-200 rounded-xl outline-none"
-                />
-                <select
-                  value={formState.severity}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, severity: e.target.value }))}
-                  className="px-3 py-2.5 border border-slate-200 rounded-xl outline-none"
-                >
+                <input value={formState.target_field} onChange={(e) => setFormState((prev) => ({ ...prev, target_field: e.target.value }))} placeholder={L('目标字段', 'Target Field')} className="rounded-xl border border-slate-200 px-3 py-2.5 outline-none" />
+                <input value={formState.operator} onChange={(e) => setFormState((prev) => ({ ...prev, operator: e.target.value }))} placeholder={L('操作符', 'Operator')} className="rounded-xl border border-slate-200 px-3 py-2.5 outline-none" />
+                <input value={formState.alert_channels} onChange={(e) => setFormState((prev) => ({ ...prev, alert_channels: e.target.value }))} placeholder={L('告警通道（逗号分隔）', 'Alert Channels (comma separated)')} className="rounded-xl border border-slate-200 px-3 py-2.5 outline-none" />
+                <select value={formState.severity} onChange={(e) => setFormState((prev) => ({ ...prev, severity: e.target.value }))} className="rounded-xl border border-slate-200 px-3 py-2.5 outline-none">
                   <option value="LOW">LOW</option>
                   <option value="MEDIUM">MEDIUM</option>
                   <option value="HIGH">HIGH</option>
                   <option value="CRITICAL">CRITICAL</option>
                 </select>
-                <select
-                  value={formState.status}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, status: e.target.value }))}
-                  className="px-3 py-2.5 border border-slate-200 rounded-xl outline-none"
-                >
+                <select value={formState.status} onChange={(e) => setFormState((prev) => ({ ...prev, status: e.target.value }))} className="rounded-xl border border-slate-200 px-3 py-2.5 outline-none">
                   <option value="ACTIVE">ACTIVE</option>
                   <option value="PAUSED">PAUSED</option>
                   <option value="DRAFT">DRAFT</option>
                   <option value="DEPRECATED">DEPRECATED</option>
                 </select>
-                <textarea
-                  value={formState.description}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))}
-                  placeholder="Description"
-                  className="px-3 py-2.5 border border-slate-200 rounded-xl outline-none md:col-span-2 h-24"
-                />
-                <textarea
-                  value={formState.threshold}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, threshold: e.target.value }))}
-                  placeholder="Threshold JSON"
-                  className="px-3 py-2.5 border border-slate-200 rounded-xl outline-none md:col-span-2 h-40 font-mono text-sm"
-                />
+                <textarea value={formState.description} onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))} placeholder={L('描述', 'Description')} className="h-24 rounded-xl border border-slate-200 px-3 py-2.5 outline-none md:col-span-2" />
+                <textarea value={formState.threshold} onChange={(e) => setFormState((prev) => ({ ...prev, threshold: e.target.value }))} placeholder={L('阈值 JSON', 'Threshold JSON')} className="h-40 rounded-xl border border-slate-200 px-3 py-2.5 font-mono text-sm outline-none md:col-span-2" />
               </div>
 
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => setFormOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => void submitForm()}
-                  disabled={formSubmitting}
-                  className="px-4 py-2 rounded-xl bg-cyan-600 text-white font-medium hover:bg-cyan-500 disabled:opacity-70"
-                >
-                  {formSubmitting ? 'Saving...' : editingRule ? 'Save Changes' : 'Create Rule'}
+              <div className="mt-4 flex justify-end gap-2">
+                <button onClick={() => setFormOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2 text-slate-700 hover:bg-slate-50">{L('取消', 'Cancel')}</button>
+                <button onClick={() => void submitForm()} disabled={formSubmitting} className="rounded-xl bg-cyan-600 px-4 py-2 font-medium text-white hover:bg-cyan-500 disabled:opacity-70">
+                  {formSubmitting ? L('保存中...', 'Saving...') : editingRule ? L('保存修改', 'Save Changes') : L('创建规则', 'Create Rule')}
                 </button>
               </div>
             </div>
@@ -696,5 +488,3 @@ const DataQuality = () => {
     </div>
   )
 }
-
-export default DataQuality

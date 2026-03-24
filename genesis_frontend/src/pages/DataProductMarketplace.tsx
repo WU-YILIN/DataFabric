@@ -11,6 +11,7 @@ import {
   type MarketplaceSubscriptionItem,
 } from '../services/api'
 import { useLanguage } from '../i18n/language'
+import { useBrowserErrorAlert } from '../hooks/useBrowserErrorAlert'
 
 const STATUS_OPTIONS = ['ALL', 'DRAFT', 'PUBLISHED', 'ARCHIVED']
 const VISIBILITY_OPTIONS = ['ALL', 'PROJECT', 'PRIVATE', 'ROLE_BASED']
@@ -82,6 +83,7 @@ const DataProductMarketplace = () => {
   const [loading, setLoading] = useState(false)
   const [operating, setOperating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  useBrowserErrorAlert(error)
   const [message, setMessage] = useState<string | null>(null)
 
   const loadOverview = async () => {
@@ -273,8 +275,6 @@ const DataProductMarketplace = () => {
           {isZh ? '刷新' : 'Refresh'}
         </button>
       </header>
-
-      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
       {message && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>}
 
       <section className="grid grid-cols-2 md:grid-cols-7 gap-3">

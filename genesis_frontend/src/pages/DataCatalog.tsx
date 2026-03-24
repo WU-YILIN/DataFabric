@@ -5,6 +5,7 @@ import { clsx } from 'clsx'
 import { useNavigate } from 'react-router-dom'
 import { GenesisApi, type DataAsset, type DataAssetDetailResponse } from '../services/api'
 import { useLanguage } from '../i18n/language'
+import { useBrowserErrorAlert } from '../hooks/useBrowserErrorAlert'
 
 type DataAssetFormState = {
   name: string
@@ -45,6 +46,7 @@ const DataCatalog = () => {
   const [assets, setAssets] = useState<DataAsset[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  useBrowserErrorAlert(error)
 
   const [q, setQ] = useState('')
   const [assetTypeFilter, setAssetTypeFilter] = useState('')
@@ -256,10 +258,6 @@ const DataCatalog = () => {
           Register Asset
         </button>
       </div>
-
-      {error && (
-        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700 text-sm">{error}</div>
-      )}
 
       <div className="glass rounded-3xl overflow-hidden shadow-sm border border-gray-200/50">
         <div className="p-4 border-b border-gray-200/50 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-3 bg-gray-50/60">

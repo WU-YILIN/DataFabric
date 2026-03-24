@@ -38,6 +38,7 @@ interface SessionContextValue extends SessionState {
   switchTenant: (tenantId: number) => Promise<void>
   switchProject: (projectId: number) => Promise<void>
   refreshProfile: () => Promise<void>
+  updateProfile: (payload: { name: string }) => Promise<void>
 }
 
 const SessionContext = createContext<SessionContextValue | null>(null)
@@ -219,6 +220,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     await applyContext(state.activeTenantId, projectId)
   }
 
+  async function updateProfile(payload: { name: string }) {
+    const result = await GenesisApi.updateMe(payload)
+    const normalized = result.default_context
+      ? { tenantId: result.default_context.tenant_id, projectId: result.default_context.project_id }
+      : chooseDefaultContext(result.tenants)
+
+    setState((prev) => ({
+      ...prev,
+      user: result.user,
+      tenants: result.tenants,
+      activeTenantId: normalized.tenantId,
+      activeProjectId: normalized.projectId,
+    }))
+  }
+
   const value = useMemo<SessionContextValue>(() => {
     const activeTenant =
       state.activeTenantId == null
@@ -243,6 +259,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       switchTenant,
       switchProject,
       refreshProfile: refreshProfileInternal,
+      updateProfile,
     }
   }, [isLoading, isSwitchingContext, state])
 

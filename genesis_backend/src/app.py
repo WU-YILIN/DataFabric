@@ -3,7 +3,7 @@ import asyncio
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import select
+from sqlalchemy import inspect, select, text
 from src.utils.logger import setup_logging, get_logger
 from src.config import settings
 from src.api.middlewares.correlation import CorrelationIdMiddleware
@@ -13,10 +13,14 @@ from src.api.v1.endpoints import auth
 from src.domain.exceptions import AppError
 from src.domain.auth.security import hash_password
 from src.domain.pipeline.sync_scheduler import sync_pipeline_loop
+from src.domain.source_intake_watch_scheduler import sync_source_watch_loop
 from src.api.v1.endpoints import (
+    assistant,
     governance,
     events,
+    fabric,
     pipelines,
+    p0,
     audit,
     stats,
     overview,
@@ -28,7 +32,6 @@ from src.api.v1.endpoints import (
     settings as settings_router,
     monitoring,
     collaboration,
-    analysis_planner,
     knowledge,
     cost,
     sandbox,
@@ -40,6 +43,9 @@ from src.api.v1.endpoints import (
     reports,
     marketplace,
     incidents,
+    schema_mapping,
+    source_intake,
+    source_onboarding,
 )
 from src.infrastructure.database.models import Base
 from src.infrastructure.database.models.tenant import Tenant, TenantStatus
@@ -55,6 +61,8 @@ setup_logging()
 logger = get_logger(__name__)
 pipeline_sync_stop_event: asyncio.Event | None = None
 pipeline_sync_task: asyncio.Task | None = None
+source_watch_stop_event: asyncio.Event | None = None
+source_watch_task: asyncio.Task | None = None
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -86,10 +94,18 @@ async def app_error_handler(request: Request, exc: AppError):
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
-    message = exc.detail if isinstance(exc.detail, str) else "Request failed"
+    if isinstance(exc.detail, str):
+        message = exc.detail
+        details = None
+    elif isinstance(exc.detail, dict):
+        message = str(exc.detail.get("message") or "Request failed")
+        details = exc.detail
+    else:
+        message = "Request failed"
+        details = exc.detail
     return JSONResponse(
         status_code=exc.status_code,
-        content=error_response(message, "HTTP_ERROR", exc.detail if not isinstance(exc.detail, str) else None),
+        content=error_response(message, "HTTP_ERROR", details),
     )
 
 
@@ -103,6 +119,9 @@ async def global_exception_handler(request: Request, exc: Exception):
 
 # Routes
 app.include_router(governance.router, prefix="/api/v1/governance", tags=["governance"])
+app.include_router(assistant.router, prefix="/api/v1/assistant", tags=["assistant"])
+app.include_router(fabric.router, prefix="/api/v1/fabric", tags=["fabric"])
+app.include_router(p0.router, prefix="/api/v1/p0", tags=["p0"])
 app.include_router(events.router, prefix="/api/v1/events", tags=["events"])
 app.include_router(pipelines.router, prefix="/api/v1/pipelines", tags=["pipelines"])
 app.include_router(audit.router, prefix="/api/v1/audit", tags=["audit"])
@@ -117,7 +136,6 @@ app.include_router(infrastructure.router, prefix="/api/v1/infrastructure", tags=
 app.include_router(settings_router.router, prefix="/api/v1/settings", tags=["settings"])
 app.include_router(monitoring.router, prefix="/api/v1/monitoring", tags=["monitoring"])
 app.include_router(collaboration.router, prefix="/api/v1/collaboration", tags=["collaboration"])
-app.include_router(analysis_planner.router, prefix="/api/v1/analysis-planner", tags=["analysis-planner"])
 app.include_router(knowledge.router, prefix="/api/v1/knowledge", tags=["knowledge"])
 app.include_router(cost.router, prefix="/api/v1/cost", tags=["cost"])
 app.include_router(sandbox.router, prefix="/api/v1/sandbox", tags=["sandbox"])
@@ -129,48 +147,13 @@ app.include_router(release.router, prefix="/api/v1/release", tags=["release"])
 app.include_router(reports.router, prefix="/api/v1/reports", tags=["reports"])
 app.include_router(marketplace.router, prefix="/api/v1/marketplace", tags=["marketplace"])
 app.include_router(incidents.router, prefix="/api/v1/incidents", tags=["incidents"])
+# V2.0 — 字段映射治理 + 读时虚拟化 + 数据质量看板
+app.include_router(schema_mapping.router, prefix="/api/v1/schema-mapping", tags=["schema-mapping"])
+app.include_router(source_intake.router, prefix="/api/v1/source-intake", tags=["source-intake"])
+app.include_router(source_onboarding.router, prefix="/api/v1/source-onboarding", tags=["source-onboarding"])
 
-
-async def _run_sqlite_compat_migrations() -> None:
-    if not settings.ASYNC_DATABASE_URL.startswith("sqlite"):
-        return
-
-    async def _ensure_column(conn, table: str, column: str, ddl: str) -> None:
-        table_info = await conn.exec_driver_sql(f"PRAGMA table_info({table})")
-        existing_columns = {row[1] for row in table_info.fetchall()}
-        if column not in existing_columns:
-            await conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {ddl}")
-            logger.info("Applied sqlite compat migration", table=table, column=column)
-
-    async with engine.begin() as conn:
-        await _ensure_column(conn, "projects", "tenant_id", "tenant_id INTEGER")
-        await _ensure_column(conn, "projects", "description", "description VARCHAR(1000)")
-        await _ensure_column(conn, "projects", "tags", "tags JSON DEFAULT '[]'")
-        await _ensure_column(conn, "projects", "default_domain", "default_domain VARCHAR(128)")
-        await _ensure_column(conn, "tracking_events", "owner", "owner VARCHAR(255)")
-        await _ensure_column(conn, "tracking_events", "tags", "tags JSON DEFAULT '[]'")
-        await _ensure_column(
-            conn,
-            "tracking_events",
-            "governance_status",
-            "governance_status VARCHAR(32) DEFAULT 'NOT_CHECKED'",
-        )
-        await _ensure_column(conn, "audit_logs", "details", "details VARCHAR(4000)")
-        await _ensure_column(conn, "governance_checks", "event_id", "event_id INTEGER")
-        await _ensure_column(
-            conn, "governance_checks", "model_name", "model_name VARCHAR(100) DEFAULT 'gpt-4o-mini'"
-        )
-        await _ensure_column(conn, "governance_checks", "request_payload", "request_payload JSON DEFAULT '{}'")
-        await _ensure_column(conn, "governance_checks", "result_payload", "result_payload JSON DEFAULT '{}'")
-        await _ensure_column(conn, "data_quality_rules", "asset_id", "asset_id INTEGER")
-        await _ensure_column(conn, "data_quality_rules", "alert_channels", "alert_channels JSON DEFAULT '[]'")
-        await _ensure_column(conn, "user_tenant_roles", "created_at", "created_at DATETIME")
-        await _ensure_column(conn, "user_tenant_roles", "updated_at", "updated_at DATETIME")
-        await _ensure_column(conn, "user_project_roles", "created_at", "created_at DATETIME")
-        await _ensure_column(conn, "user_project_roles", "updated_at", "updated_at DATETIME")
-        await _ensure_column(conn, "alerts", "claimed_by", "claimed_by VARCHAR(255)")
-        await _ensure_column(conn, "alerts", "claimed_at", "claimed_at DATETIME")
-        await _ensure_column(conn, "alerts", "last_note", "last_note VARCHAR(1000)")
+from src.api.v1.endpoints import tenant_project_admin
+app.include_router(tenant_project_admin.router, prefix="/api/v1/admin", tags=["admin"])
 
 
 async def _ensure_demo_tenant(session) -> Tenant:
@@ -192,6 +175,9 @@ async def _ensure_demo_project(session, tenant_id: int) -> Project:
     project_repo = ProjectRepository(session)
     project = await project_repo.get_by_name("demo_project")
     if not project:
+        api_key_result = await session.execute(select(Project).where(Project.api_key == "demo-key-001"))
+        project = api_key_result.scalar_one_or_none()
+    if not project:
         return await project_repo.create(
             {
                 "tenant_id": tenant_id,
@@ -200,8 +186,15 @@ async def _ensure_demo_project(session, tenant_id: int) -> Project:
                 "tech_stack": {"mode": "demo"},
             }
         )
+    update_payload = {}
     if project.tenant_id != tenant_id:
-        project = await project_repo.update(project, {"tenant_id": tenant_id})
+        update_payload["tenant_id"] = tenant_id
+    if project.name != "demo_project":
+        update_payload["name"] = "demo_project"
+    if not project.api_key:
+        update_payload["api_key"] = "demo-key-001"
+    if update_payload:
+        project = await project_repo.update(project, update_payload)
     return project
 
 
@@ -255,13 +248,98 @@ async def _ensure_demo_user(session, tenant_id: int, project_id: int) -> None:
             }
         )
 
-@app.on_event("startup")
-async def startup_event():
-    global pipeline_sync_stop_event, pipeline_sync_task
-    logger.info("Starting up Genesis Backend", environment=settings.ENVIRONMENT)
+
+def _get_existing_columns(sync_conn, table_name: str) -> set[str]:
+    inspector = inspect(sync_conn)
+    try:
+        return {item["name"] for item in inspector.get_columns(table_name)}
+    except Exception:
+        return set()
+
+
+async def _ensure_source_instance_watch_columns() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    await _run_sqlite_compat_migrations()
+        existing_columns = await conn.run_sync(lambda sync_conn: _get_existing_columns(sync_conn, "source_instances"))
+        if not existing_columns:
+            return
+        dialect = conn.dialect.name
+        statements: list[str] = []
+        if "watch_enabled" not in existing_columns:
+            statements.append(
+                "ALTER TABLE source_instances ADD COLUMN IF NOT EXISTS watch_enabled BOOLEAN NOT NULL DEFAULT FALSE"
+                if dialect == "postgresql"
+                else "ALTER TABLE source_instances ADD COLUMN watch_enabled BOOLEAN NOT NULL DEFAULT FALSE"
+            )
+        if "watch_interval_seconds" not in existing_columns:
+            statements.append(
+                "ALTER TABLE source_instances ADD COLUMN IF NOT EXISTS watch_interval_seconds INTEGER NOT NULL DEFAULT 300"
+                if dialect == "postgresql"
+                else "ALTER TABLE source_instances ADD COLUMN watch_interval_seconds INTEGER NOT NULL DEFAULT 300"
+            )
+        if "watch_next_run_at" not in existing_columns:
+            statements.append(
+                "ALTER TABLE source_instances ADD COLUMN IF NOT EXISTS watch_next_run_at TIMESTAMPTZ NULL"
+                if dialect == "postgresql"
+                else "ALTER TABLE source_instances ADD COLUMN watch_next_run_at DATETIME NULL"
+            )
+        if "watch_last_started_at" not in existing_columns:
+            statements.append(
+                "ALTER TABLE source_instances ADD COLUMN IF NOT EXISTS watch_last_started_at TIMESTAMPTZ NULL"
+                if dialect == "postgresql"
+                else "ALTER TABLE source_instances ADD COLUMN watch_last_started_at DATETIME NULL"
+            )
+        if "watch_last_finished_at" not in existing_columns:
+            statements.append(
+                "ALTER TABLE source_instances ADD COLUMN IF NOT EXISTS watch_last_finished_at TIMESTAMPTZ NULL"
+                if dialect == "postgresql"
+                else "ALTER TABLE source_instances ADD COLUMN watch_last_finished_at DATETIME NULL"
+            )
+        if "watch_failure_count" not in existing_columns:
+            statements.append(
+                "ALTER TABLE source_instances ADD COLUMN IF NOT EXISTS watch_failure_count INTEGER NOT NULL DEFAULT 0"
+                if dialect == "postgresql"
+                else "ALTER TABLE source_instances ADD COLUMN watch_failure_count INTEGER NOT NULL DEFAULT 0"
+            )
+        for statement in statements:
+            await conn.execute(text(statement))
+
+
+async def _ensure_knowledge_document_reference_columns() -> None:
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        existing_columns = await conn.run_sync(lambda sync_conn: _get_existing_columns(sync_conn, "knowledge_documents"))
+        if not existing_columns:
+            return
+        dialect = conn.dialect.name
+        statements: list[str] = []
+        if "knowledge_level" not in existing_columns:
+            statements.append(
+                "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS knowledge_level VARCHAR(32) NOT NULL DEFAULT 'BRIEF'"
+                if dialect == "postgresql"
+                else "ALTER TABLE knowledge_documents ADD COLUMN knowledge_level VARCHAR(32) NOT NULL DEFAULT 'BRIEF'"
+            )
+        if "object_refs" not in existing_columns:
+            statements.append(
+                "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS object_refs JSON NOT NULL DEFAULT '[]'"
+                if dialect == "postgresql"
+                else "ALTER TABLE knowledge_documents ADD COLUMN object_refs JSON NOT NULL DEFAULT '[]'"
+            )
+        if "fact_refs" not in existing_columns:
+            statements.append(
+                "ALTER TABLE knowledge_documents ADD COLUMN IF NOT EXISTS fact_refs JSON NOT NULL DEFAULT '[]'"
+                if dialect == "postgresql"
+                else "ALTER TABLE knowledge_documents ADD COLUMN fact_refs JSON NOT NULL DEFAULT '[]'"
+            )
+        for statement in statements:
+            await conn.execute(text(statement))
+
+@app.on_event("startup")
+async def startup_event():
+    global pipeline_sync_stop_event, pipeline_sync_task, source_watch_stop_event, source_watch_task
+    logger.info("Starting up Genesis Backend", environment=settings.ENVIRONMENT)
+    await _ensure_source_instance_watch_columns()
+    await _ensure_knowledge_document_reference_columns()
     async with async_session_factory() as session:
         tenant = await _ensure_demo_tenant(session)
         project = await _ensure_demo_project(session, tenant.id)
@@ -271,15 +349,23 @@ async def startup_event():
         pipeline_sync_stop_event = asyncio.Event()
         pipeline_sync_task = asyncio.create_task(sync_pipeline_loop(pipeline_sync_stop_event))
         logger.info("Pipeline auto-sync enabled")
+    if settings.SOURCE_INTAKE_WATCH_ENABLED:
+        source_watch_stop_event = asyncio.Event()
+        source_watch_task = asyncio.create_task(sync_source_watch_loop(source_watch_stop_event))
+        logger.info("Source intake auto-watch enabled")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    global pipeline_sync_stop_event, pipeline_sync_task
+    global pipeline_sync_stop_event, pipeline_sync_task, source_watch_stop_event, source_watch_task
     if pipeline_sync_stop_event is not None:
         pipeline_sync_stop_event.set()
     if pipeline_sync_task is not None:
         await pipeline_sync_task
+    if source_watch_stop_event is not None:
+        source_watch_stop_event.set()
+    if source_watch_task is not None:
+        await source_watch_task
 
 @app.get("/health")
 async def health_check():

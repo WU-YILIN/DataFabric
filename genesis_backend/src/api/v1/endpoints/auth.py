@@ -38,6 +38,10 @@ class SwitchContextRequest(BaseModel):
     project_id: int
 
 
+class UpdateProfileRequest(BaseModel):
+    name: str
+
+
 def _role_priority(role: str) -> int:
     order = {
         "OWNER": 5,
@@ -330,6 +334,23 @@ async def me(
         "default_context": _build_default_context(access_tree),
     }
     return success_response(data)
+
+
+@router.patch("/me")
+async def update_me(
+    request: UpdateProfileRequest,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_session),
+):
+    name = request.name.strip()
+    if len(name) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Name must be at least 2 characters",
+        )
+    updated = await BaseRepository(User, db).update(user, {"name": name})
+    data = await _build_login_result(updated, db)
+    return success_response(data, message="Profile updated", code="PROFILE_UPDATED")
 
 
 @router.get("/tenants")

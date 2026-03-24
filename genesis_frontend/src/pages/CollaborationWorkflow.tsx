@@ -9,6 +9,8 @@ import {
   type CollaborationWorkflowDetailResponse,
   type CollaborationWorkflowListResponse,
 } from '../services/api'
+import { useBrowserErrorAlert } from '../hooks/useBrowserErrorAlert'
+import { useLanguage } from '../i18n/language'
 
 const statusClass: Record<string, string> = {
   PENDING_APPROVAL: 'bg-amber-100 text-amber-700',
@@ -19,6 +21,10 @@ const statusClass: Record<string, string> = {
 }
 
 const CollaborationWorkflowPage = () => {
+  const { locale } = useLanguage()
+  void locale
+  const isZh = false
+  const L = (cn: string, en: string) => (isZh ? cn : en)
   const navigate = useNavigate()
   const [overview, setOverview] = useState<CollaborationOverviewResponse | null>(null)
   const [workflows, setWorkflows] = useState<CollaborationWorkflowListResponse | null>(null)
@@ -31,6 +37,7 @@ const CollaborationWorkflowPage = () => {
   const [operating, setOperating] = useState(false)
 
   const [error, setError] = useState<string | null>(null)
+  useBrowserErrorAlert(error)
   const [message, setMessage] = useState<string | null>(null)
 
   const [filters, setFilters] = useState({
@@ -64,7 +71,7 @@ const CollaborationWorkflowPage = () => {
       const data = await GenesisApi.getCollaborationOverview()
       setOverview(data)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load collaboration overview')
+      setError(e?.response?.data?.message ?? L('加载协作总览失败', 'Failed to load collaboration overview'))
     } finally {
       setLoadingOverview(false)
     }
@@ -90,7 +97,7 @@ const CollaborationWorkflowPage = () => {
         setSelectedWorkflowId(data.items[0]?.id ?? null)
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load workflows')
+      setError(e?.response?.data?.message ?? L('加载工作流失败', 'Failed to load workflows'))
     } finally {
       setLoadingList(false)
     }
@@ -104,7 +111,7 @@ const CollaborationWorkflowPage = () => {
       setDetail(data)
       setCommentText('')
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load workflow detail')
+      setError(e?.response?.data?.message ?? L('加载工作流详情失败', 'Failed to load workflow detail'))
       setDetail(null)
     } finally {
       setLoadingDetail(false)
@@ -153,7 +160,7 @@ const CollaborationWorkflowPage = () => {
         priority: createForm.priority,
         assignee_role: createForm.assignee_role,
       })
-      setMessage(`Workflow #${created.workflow.id} created`)
+      setMessage(`${L('工作流已创建', 'Workflow created')} #${created.workflow.id}`)
       setCreateForm((prev) => ({
         ...prev,
         source_id: '',
@@ -163,7 +170,7 @@ const CollaborationWorkflowPage = () => {
       await Promise.all([loadOverview(), loadWorkflows()])
       setSelectedWorkflowId(created.workflow.id)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to create workflow')
+      setError(e?.response?.data?.message ?? L('创建工作流失败', 'Failed to create workflow'))
     } finally {
       setOperating(false)
     }
@@ -181,7 +188,7 @@ const CollaborationWorkflowPage = () => {
       await loadOverview()
       setCommentText('')
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to add comment')
+      setError(e?.response?.data?.message ?? L('添加评论失败', 'Failed to add comment'))
     } finally {
       setOperating(false)
     }
@@ -199,10 +206,10 @@ const CollaborationWorkflowPage = () => {
         action,
         note: actionNote.trim() || undefined,
       })
-      setMessage(`Action ${action} applied`)
+      setMessage(`${L('操作已执行', 'Action applied')}: ${action}`)
       await Promise.all([loadOverview(), loadWorkflows(), loadDetail(detail.workflow.id)])
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? `Failed to ${action.toLowerCase()} workflow`)
+      setError(e?.response?.data?.message ?? `${L('工作流操作失败', 'Workflow operation failed')}: ${action}`)
     } finally {
       setOperating(false)
     }
@@ -223,8 +230,8 @@ const CollaborationWorkflowPage = () => {
     <div className="max-w-7xl mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Collaboration & Workflow</h2>
-          <p className="text-slate-500 text-base">Manage todo items, approvals, comments, and workflow history.</p>
+          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{L('协作与工作流', 'Collaboration & Workflow')}</h2>
+          <p className="text-slate-500 text-base">{L('管理待办、审批、评论和工作流历史。', 'Manage todo items, approvals, comments, and workflow history.')}</p>
         </div>
         <button
           onClick={() => void onRefresh()}
@@ -232,30 +239,28 @@ const CollaborationWorkflowPage = () => {
           className="rounded-xl bg-slate-900 text-white px-4 py-2.5 font-medium hover:bg-slate-800 disabled:opacity-60 flex items-center gap-2"
         >
           <RefreshCw size={16} />
-          Refresh
+          {L('刷新', 'Refresh')}
         </button>
       </header>
-
-      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
       {message && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>
       )}
 
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="glass rounded-2xl border border-slate-200/60 p-3">
-          <p className="text-xs text-slate-500">Total Workflows</p>
+          <p className="text-xs text-slate-500">{L('?????', 'Total Workflows')}</p>
           <p className="text-2xl font-bold text-slate-900">{overview?.summary.total_workflows ?? 0}</p>
         </div>
         <div className="glass rounded-2xl border border-slate-200/60 p-3">
-          <p className="text-xs text-slate-500">My Open Todos</p>
+          <p className="text-xs text-slate-500">{L('????', 'My Open Todos')}</p>
           <p className="text-2xl font-bold text-amber-700">{overview?.summary.open_todos ?? 0}</p>
         </div>
         <div className="glass rounded-2xl border border-slate-200/60 p-3">
-          <p className="text-xs text-slate-500">Initiated By Me</p>
+          <p className="text-xs text-slate-500">{L('????', 'Initiated By Me')}</p>
           <p className="text-2xl font-bold text-cyan-700">{overview?.summary.initiated_count ?? 0}</p>
         </div>
         <div className="glass rounded-2xl border border-slate-200/60 p-3">
-          <p className="text-xs text-slate-500">Pending Approval</p>
+          <p className="text-xs text-slate-500">{L('???', 'Pending Approval')}</p>
           <p className="text-2xl font-bold text-rose-700">{overview?.summary.status_counts.PENDING_APPROVAL ?? 0}</p>
         </div>
       </section>
@@ -264,13 +269,13 @@ const CollaborationWorkflowPage = () => {
         <div className="glass rounded-3xl border border-slate-200/60 p-4">
           <div className="flex items-center gap-2 mb-3">
             <Workflow size={16} className="text-slate-500" />
-            <h3 className="text-sm font-semibold text-slate-800">Create Workflow</h3>
+            <h3 className="text-sm font-semibold text-slate-800">{L('?????', 'Create Workflow')}</h3>
           </div>
           <form onSubmit={onCreateWorkflow} className="space-y-2">
             <input
               value={createForm.title}
               onChange={(e) => setCreateForm((prev) => ({ ...prev, title: e.target.value }))}
-              placeholder="Title"
+              placeholder={L('??', 'Title')}
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
               required
             />
@@ -278,14 +283,14 @@ const CollaborationWorkflowPage = () => {
               <input
                 value={createForm.workflow_type}
                 onChange={(e) => setCreateForm((prev) => ({ ...prev, workflow_type: e.target.value }))}
-                placeholder="Workflow Type"
+                placeholder={L('?????', 'Workflow Type')}
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 required
               />
               <input
                 value={createForm.source_type}
                 onChange={(e) => setCreateForm((prev) => ({ ...prev, source_type: e.target.value }))}
-                placeholder="Source Type"
+                placeholder={L('????', 'Source Type')}
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 required
               />
@@ -294,7 +299,7 @@ const CollaborationWorkflowPage = () => {
               <input
                 value={createForm.source_id}
                 onChange={(e) => setCreateForm((prev) => ({ ...prev, source_id: e.target.value }))}
-                placeholder="Source ID"
+                placeholder={L('?? ID', 'Source ID')}
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 required
               />
@@ -312,14 +317,14 @@ const CollaborationWorkflowPage = () => {
             <input
               value={createForm.assignee_role}
               onChange={(e) => setCreateForm((prev) => ({ ...prev, assignee_role: e.target.value }))}
-              placeholder="Assignee Role (e.g. APPROVER)"
+              placeholder={L('??????? APPROVER', 'Assignee Role (e.g. APPROVER)')}
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
             />
             <textarea
               rows={3}
               value={createForm.description}
               onChange={(e) => setCreateForm((prev) => ({ ...prev, description: e.target.value }))}
-              placeholder="Description / context"
+              placeholder={L('?? / ???', 'Description / context')}
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
             />
             <button
@@ -327,7 +332,7 @@ const CollaborationWorkflowPage = () => {
               disabled={operating}
               className="w-full rounded-lg bg-cyan-600 text-white py-2 text-sm font-semibold disabled:opacity-50"
             >
-              Create
+              {L('??', 'Create')}
             </button>
           </form>
         </div>
@@ -335,11 +340,11 @@ const CollaborationWorkflowPage = () => {
         <div className="glass rounded-3xl border border-slate-200/60 p-4 xl:col-span-2">
           <div className="flex items-center gap-2 mb-3">
             <Users2 size={16} className="text-slate-500" />
-            <h3 className="text-sm font-semibold text-slate-800">My Todos & Initiated Flows</h3>
+            <h3 className="text-sm font-semibold text-slate-800">{L('?????????', 'My Todos & Initiated Flows')}</h3>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="rounded-xl border border-slate-200 bg-white p-3 max-h-48 overflow-auto">
-              <p className="text-xs font-semibold text-slate-700 mb-2">My Todos</p>
+              <p className="text-xs font-semibold text-slate-700 mb-2">{L('????', 'My Todos')}</p>
               {(overview?.my_todos ?? []).map((todo) => (
                 <button
                   key={todo.id}
@@ -350,10 +355,10 @@ const CollaborationWorkflowPage = () => {
                   <p className="text-xs text-slate-500">wf#{todo.workflow_id} | {todo.priority}</p>
                 </button>
               ))}
-              {(overview?.my_todos.length ?? 0) === 0 && <p className="text-sm text-slate-500">No open todo.</p>}
+              {(overview?.my_todos.length ?? 0) === 0 && <p className="text-sm text-slate-500">{L('?????', 'No open todo.')}</p>}
             </div>
             <div className="rounded-xl border border-slate-200 bg-white p-3 max-h-48 overflow-auto">
-              <p className="text-xs font-semibold text-slate-700 mb-2">Initiated By Me</p>
+              <p className="text-xs font-semibold text-slate-700 mb-2">{L('????', 'Initiated By Me')}</p>
               {(overview?.initiated_workflows ?? []).map((wf) => (
                 <button
                   key={wf.id}
@@ -365,7 +370,7 @@ const CollaborationWorkflowPage = () => {
                 </button>
               ))}
               {(overview?.initiated_workflows.length ?? 0) === 0 && (
-                <p className="text-sm text-slate-500">No initiated workflows.</p>
+                <p className="text-sm text-slate-500">{L('??????????', 'No initiated workflows.')}</p>
               )}
             </div>
           </div>
@@ -378,7 +383,7 @@ const CollaborationWorkflowPage = () => {
             <input
               value={filters.q}
               onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value }))}
-              placeholder="search title/source"
+              placeholder={L('???????', 'search title/source')}
               className="rounded-lg border border-slate-200 px-3 py-2 text-sm md:col-span-2"
             />
             <select
@@ -386,13 +391,13 @@ const CollaborationWorkflowPage = () => {
               onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
               className="rounded-lg border border-slate-200 px-3 py-2 text-sm"
             >
-              <option value="ALL">All Status</option>
+              <option value="ALL">{L('????', 'All Status')}</option>
               {availableStatuses.map((item) => (
                 <option key={item} value={item}>{item}</option>
               ))}
             </select>
             <button type="submit" className="rounded-lg bg-slate-900 text-white px-3 py-2 text-sm font-semibold">
-              Filter
+              {L('??', 'Filter')}
             </button>
           </form>
 
@@ -403,7 +408,7 @@ const CollaborationWorkflowPage = () => {
                 checked={filters.initiated_by_me}
                 onChange={(e) => setFilters((prev) => ({ ...prev, initiated_by_me: e.target.checked }))}
               />
-              Initiated by me
+              {L('??????', 'Initiated by me')}
             </label>
             <label className="inline-flex items-center gap-1 text-slate-600">
               <input
@@ -411,12 +416,12 @@ const CollaborationWorkflowPage = () => {
                 checked={filters.my_todos_only}
                 onChange={(e) => setFilters((prev) => ({ ...prev, my_todos_only: e.target.checked }))}
               />
-              My todos only
+              {L('??????', 'My todos only')}
             </label>
           </div>
 
           <div className="space-y-2 max-h-[620px] overflow-auto">
-            {loadingList && <p className="text-sm text-slate-500">Loading workflows...</p>}
+            {loadingList && <p className="text-sm text-slate-500">{L('???????...', 'Loading workflows...')}</p>}
             {(workflows?.items ?? []).map((item) => (
               <button
                 key={item.id}
@@ -436,19 +441,19 @@ const CollaborationWorkflowPage = () => {
                   {item.workflow_type} | {item.source_type}:{item.source_id}
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
-                  open tasks {item.open_task_count} | my todo {item.is_my_todo ? 'yes' : 'no'}
+                  {L('????', 'open tasks')} {item.open_task_count} | {L('????', 'my todo')} {item.is_my_todo ? L('?', 'yes') : L('?', 'no')}
                 </p>
               </button>
             ))}
             {(workflows?.items.length ?? 0) === 0 && !loadingList && (
-              <p className="text-sm text-slate-500">No workflows under current filters.</p>
+              <p className="text-sm text-slate-500">{L('?????????????', 'No workflows under current filters.')}</p>
             )}
           </div>
         </div>
 
         <div className="glass rounded-3xl border border-slate-200/60 p-4">
-          {!detail && <p className="text-sm text-slate-500">Select one workflow to inspect details.</p>}
-          {loadingDetail && <p className="text-sm text-slate-500">Loading detail...</p>}
+          {!detail && <p className="text-sm text-slate-500">{L('????????????', 'Select one workflow to inspect details.')}</p>}
+          {loadingDetail && <p className="text-sm text-slate-500">{L('??????...', 'Loading detail...')}</p>}
           {detail && (
             <div className="space-y-3">
               <div className="rounded-xl border border-slate-200 bg-white p-3">
@@ -473,20 +478,20 @@ const CollaborationWorkflowPage = () => {
                     onClick={openKnowledgeForLinkedObject}
                     className="rounded-lg bg-emerald-600 text-white px-3 py-1 text-xs"
                   >
-                    Related Docs
+                    {L('????', 'Related Docs')}
                   </button>
                 </div>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-xs font-semibold text-slate-700 mb-2">Context</p>
+                <p className="text-xs font-semibold text-slate-700 mb-2">{L('???', 'Context')}</p>
                 <pre className="text-xs bg-slate-50 p-2 rounded-lg overflow-auto text-slate-700">
 {JSON.stringify(detail.workflow.context_payload, null, 2)}
                 </pre>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-xs font-semibold text-slate-700 mb-2">Tasks</p>
+                <p className="text-xs font-semibold text-slate-700 mb-2">{L('??', 'Tasks')}</p>
                 <div className="space-y-2 max-h-40 overflow-auto">
                   {detail.tasks.map((task) => (
                     <div key={task.id} className="border-b border-slate-100 pb-1">
@@ -498,7 +503,7 @@ const CollaborationWorkflowPage = () => {
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-xs font-semibold text-slate-700 mb-2">Comments</p>
+                <p className="text-xs font-semibold text-slate-700 mb-2">{L('??', 'Comments')}</p>
                 <div className="space-y-2 max-h-36 overflow-auto">
                   {detail.comments.map((comment) => (
                     <div key={comment.id} className="border-b border-slate-100 pb-1">
@@ -528,7 +533,7 @@ const CollaborationWorkflowPage = () => {
               <div className="rounded-xl border border-slate-200 bg-white p-3">
                 <div className="flex items-center gap-2 mb-2">
                   <MessageSquare size={14} className="text-slate-500" />
-                  <p className="text-xs font-semibold text-slate-700">Workflow Actions</p>
+                  <p className="text-xs font-semibold text-slate-700">{L('?????', 'Workflow Actions')}</p>
                 </div>
                 <textarea
                   rows={2}
@@ -538,16 +543,16 @@ const CollaborationWorkflowPage = () => {
                   className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
                 />
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <button onClick={() => void operateWorkflow('START')} className="rounded-lg bg-cyan-600 text-white px-3 py-1.5 text-sm">Start</button>
-                  <button onClick={() => void operateWorkflow('APPROVE')} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-sm">Approve</button>
-                  <button onClick={() => void operateWorkflow('REQUEST_REVISION')} className="rounded-lg bg-amber-500 text-white px-3 py-1.5 text-sm">Request Revision</button>
-                  <button onClick={() => void operateWorkflow('REJECT')} className="rounded-lg bg-rose-600 text-white px-3 py-1.5 text-sm">Reject</button>
-                  <button onClick={() => void operateWorkflow('COMPLETE')} className="rounded-lg bg-slate-700 text-white px-3 py-1.5 text-sm">Complete</button>
+                  <button onClick={() => void operateWorkflow('START')} className="rounded-lg bg-cyan-600 text-white px-3 py-1.5 text-sm">{L('??', 'Start')}</button>
+                  <button onClick={() => void operateWorkflow('APPROVE')} className="rounded-lg bg-emerald-600 text-white px-3 py-1.5 text-sm">{L('??', 'Approve')}</button>
+                  <button onClick={() => void operateWorkflow('REQUEST_REVISION')} className="rounded-lg bg-amber-500 text-white px-3 py-1.5 text-sm">{L('????', 'Request Revision')}</button>
+                  <button onClick={() => void operateWorkflow('REJECT')} className="rounded-lg bg-rose-600 text-white px-3 py-1.5 text-sm">{L('??', 'Reject')}</button>
+                  <button onClick={() => void operateWorkflow('COMPLETE')} className="rounded-lg bg-slate-700 text-white px-3 py-1.5 text-sm">{L('??', 'Complete')}</button>
                 </div>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <p className="text-xs font-semibold text-slate-700 mb-2">Action History</p>
+                <p className="text-xs font-semibold text-slate-700 mb-2">{L('????', 'Action History')}</p>
                 <div className="space-y-2 max-h-44 overflow-auto">
                   {detail.action_history.map((item) => (
                     <div key={item.id} className="border-b border-slate-100 pb-1">

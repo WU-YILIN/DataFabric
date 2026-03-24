@@ -1,3 +1,4 @@
+import { useBrowserErrorAlert } from '../hooks/useBrowserErrorAlert'
 ﻿import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { clsx } from 'clsx'
 import { AlertTriangle, ClipboardList, RefreshCw, ShieldCheck } from 'lucide-react'
@@ -104,6 +105,7 @@ const IncidentResponseCenter = () => {
   const [loading, setLoading] = useState(false)
   const [operating, setOperating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  useBrowserErrorAlert(error)
   const [message, setMessage] = useState<string | null>(null)
 
   const loadOverview = async () => {
@@ -367,8 +369,6 @@ const IncidentResponseCenter = () => {
           {isZh ? '刷新' : 'Refresh'}
         </button>
       </header>
-
-      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
       {message && (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>
       )}

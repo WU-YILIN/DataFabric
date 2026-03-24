@@ -18,7 +18,7 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "Genesis-Tracking"
     ENVIRONMENT: Environment = Environment.DEVELOPMENT
-    DATABASE_URL: str | None = "sqlite+aiosqlite:///./genesis_local.db"
+    DATABASE_URL: str | None = None
 
     # Database
     POSTGRES_USER: str = "postgres"
@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     FLINK_PIPELINE_ENTRY_CLASS: str | None = None
     PIPELINE_AUTO_SYNC_ENABLED: bool = True
     PIPELINE_SYNC_INTERVAL_SECONDS: int = 30
+    SOURCE_INTAKE_WATCH_ENABLED: bool = True
+    SOURCE_INTAKE_WATCH_TICK_SECONDS: int = 15
+    SOURCE_INTAKE_WATCH_BATCH_SIZE: int = 20
 
     # Worker Broker (defaults to in-memory for local dev)
     CELERY_BROKER_URL: str = "memory://"
@@ -54,6 +57,8 @@ class Settings(BaseSettings):
 
     # LLM
     OPENAI_API_KEY: Optional[str] = None
+    OPENAI_BASE_URL: Optional[str] = None
+    OPENAI_MODEL: str = "gpt-4o-mini"
 
     # Auth
     AUTH_SECRET_KEY: str = "dev-only-change-me"
@@ -62,6 +67,11 @@ class Settings(BaseSettings):
     # Observability
     LOG_LEVEL: str = "INFO"
     OTEL_EXPORTER_OTLP_ENDPOINT: str = "http://localhost:4317"
+
+    # Genesis Ingestion Gateway (go-based high-performance collector)
+    # Leave empty to skip gateway sync (keys will be picked up via Redis background poll).
+    INGESTER_BASE_URL: str = "http://localhost:8090"
+    INGESTER_INTERNAL_KEY: str = "change-me-in-production"
 
 
 settings = Settings()

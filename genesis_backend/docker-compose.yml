@@ -11,7 +11,20 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-genesis_db}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-genesis_db}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: genesis_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -25,7 +38,7 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:6333/healthz"]
+      test: [ "CMD", "curl", "-f", "http://localhost:6333/healthz" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -57,8 +70,18 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: genesis_zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      # PLAINTEXT_HOST allows host-machine clients on localhost:9092
+      # PLAINTEXT allows in-Docker containers on genesis_kafka:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT_HOST://localhost:9092,PLAINTEXT://genesis_kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: [ "CMD", "kafka-topics", "--bootstrap-server", "localhost:9092", "--list" ]
+      interval: 15s
+      timeout: 10s
+      retries: 10
 
   flink-jobmanager:
     image: flink:1.18.1
@@ -78,6 +101,46 @@ services:
     environment:
       JOB_MANAGER_RPC_ADDRESS: flink-jobmanager
 
+  # ── Genesis Ingestion Gateway (Go) ──────────────────────────────────────────
+  # High-performance Schemaless event collector. Authenticates via in-memory
+  # key store backed by Redis, and writes raw payloads to Kafka (ods_raw_events).
+  genesis-ingester:
+    build:
+      context: ../genesis_ingester
+      dockerfile: Dockerfile
+    container_name: genesis_ingester
+    ports:
+      - "8090:8080" # host:8090 → container:8080
+    environment:
+      LISTEN_ADDR: ":8080"
+      KAFKA_BROKERS: "genesis_kafka:29092" # internal Docker network broker
+      KAFKA_TOPIC: "ods_raw_events"
+      REDIS_ADDR: "genesis_redis:6379"
+      REDIS_PASSWORD: ""
+      REDIS_DB: "0"
+      MAX_BODY_BYTES: "524288"
+      RATE_LIMIT_PER_SEC: "200"
+      RATE_LIMIT_BURST: "500"
+      INTERNAL_API_KEY: "${INGESTER_INTERNAL_KEY:-change-me-in-production}"
+      PRODUCER_QUEUE_SIZE: "10000"
+      PRODUCER_BATCH_SIZE: "500"
+      PRODUCER_FLUSH_MS: "500"
+      LOG_FORMAT: "json"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD", "wget", "-qO-", "http://localhost:8080/health" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
 volumes:
   postgres_data:
+  redis_data:
   qdrant_data:
+
+

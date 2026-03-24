@@ -11,8 +11,14 @@ import {
   type AccessUserItem,
   type AccessUserListResponse,
 } from '../services/api'
+import { useBrowserErrorAlert } from '../hooks/useBrowserErrorAlert'
+import { useLanguage } from '../i18n/language'
 
 const AccessManagementPage = () => {
+  const { locale } = useLanguage()
+  void locale
+  const isZh = false
+  const L = (cn: string, en: string) => (isZh ? cn : en)
   const { activeProjectId } = useSession()
   const [overview, setOverview] = useState<AccessOverviewResponse | null>(null)
   const [users, setUsers] = useState<AccessUserListResponse | null>(null)
@@ -24,6 +30,7 @@ const AccessManagementPage = () => {
   const [loading, setLoading] = useState(false)
   const [operating, setOperating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  useBrowserErrorAlert(error)
   const [message, setMessage] = useState<string | null>(null)
 
   const [filters, setFilters] = useState({
@@ -141,7 +148,7 @@ const AccessManagementPage = () => {
         await loadDetail(selectedUserId)
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load access management')
+      setError(e?.response?.data?.message ?? L('????????', 'Failed to load access management'))
     } finally {
       setLoading(false)
     }
@@ -178,7 +185,7 @@ const AccessManagementPage = () => {
     try {
       await loadUsers()
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load users')
+      setError(e?.response?.data?.message ?? L('??????', 'Failed to load users'))
     } finally {
       setLoading(false)
     }
@@ -196,11 +203,11 @@ const AccessManagementPage = () => {
         project_role: inviteForm.project_role,
         expires_in_hours: inviteForm.expires_in_hours,
       })
-      setMessage(`Invite processed: ${result.mode}`)
+      setMessage(`${L('?????', 'Invite processed')}: ${result.mode}`)
       setInviteForm((prev) => ({ ...prev, email: '' }))
       await Promise.all([loadOverview(), loadUsers()])
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Invite failed')
+      setError(e?.response?.data?.message ?? L('????', 'Invite failed'))
     } finally {
       setOperating(false)
     }
@@ -223,10 +230,10 @@ const AccessManagementPage = () => {
           },
         ],
       })
-      setMessage('User roles updated')
+      setMessage(L('???????', 'User roles updated'))
       await Promise.all([loadOverview(), loadUsers(), loadDetail(selectedUser.user_id)])
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Role update failed')
+      setError(e?.response?.data?.message ?? L('??????', 'Role update failed'))
     } finally {
       setOperating(false)
     }
@@ -241,10 +248,10 @@ const AccessManagementPage = () => {
       await GenesisApi.updateAccessUserStatus(selectedUser.user_id, {
         is_active: selectedUser.status !== 'ACTIVE',
       })
-      setMessage('User status updated')
+      setMessage(L('???????', 'User status updated'))
       await Promise.all([loadOverview(), loadUsers(), loadDetail(selectedUser.user_id)])
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Status update failed')
+      setError(e?.response?.data?.message ?? L('??????', 'Status update failed'))
     } finally {
       setOperating(false)
     }
@@ -254,7 +261,7 @@ const AccessManagementPage = () => {
     if (!selectedTemplateKey) return
     const matrix = parseJsonObject(templateForm.matrixJson)
     if (!matrix) {
-      setError('Permission matrix JSON must be object')
+      setError(L('???? JSON ?????', 'Permission matrix JSON must be object'))
       return
     }
     setOperating(true)
@@ -267,10 +274,10 @@ const AccessManagementPage = () => {
         permission_matrix: matrix as { modules: Record<string, string[]> },
         is_active: templateForm.is_active,
       })
-      setMessage(`Template ${updated.template_key} saved`)
+      setMessage(`${L('?????', 'Template saved')}: ${updated.template_key}`)
       await loadTemplates()
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Template save failed')
+      setError(e?.response?.data?.message ?? L('??????', 'Template save failed'))
     } finally {
       setOperating(false)
     }
@@ -283,10 +290,10 @@ const AccessManagementPage = () => {
     setMessage(null)
     try {
       await GenesisApi.deleteAccessRoleTemplate(selectedTemplate.template_key)
-      setMessage(`Template ${selectedTemplate.template_key} deleted`)
+      setMessage(`${L('?????', 'Template deleted')}: ${selectedTemplate.template_key}`)
       await loadTemplates()
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Template delete failed')
+      setError(e?.response?.data?.message ?? L('??????', 'Template delete failed'))
     } finally {
       setOperating(false)
     }
@@ -305,7 +312,7 @@ const AccessManagementPage = () => {
       })
       setEvaluateResult(result)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Evaluate failed')
+      setError(e?.response?.data?.message ?? L('??????', 'Evaluate failed'))
     } finally {
       setOperating(false)
     }
@@ -315,8 +322,8 @@ const AccessManagementPage = () => {
     <div className="max-w-7xl mx-auto space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">User & Access Management</h2>
-          <p className="text-slate-500 text-base">Manage users, role bindings, and permission templates in current tenant scope.</p>
+          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{L('???????', 'User & Access Management')}</h2>
+          <p className="text-slate-500 text-base">{L('???????????????????????', 'Manage users, role bindings, and permission templates in current tenant scope.')}</p>
         </div>
         <button
           onClick={() => void refreshAll()}
@@ -324,20 +331,18 @@ const AccessManagementPage = () => {
           className="rounded-xl bg-slate-900 text-white px-4 py-2.5 font-medium hover:bg-slate-800 disabled:opacity-60 flex items-center gap-2"
         >
           <RefreshCw size={16} />
-          Refresh
+          {L('??', 'Refresh')}
         </button>
       </header>
-
-      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
       {message && <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{message}</div>}
 
       <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
-        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">Users</p><p className="text-2xl font-bold text-slate-900">{overview?.summary.total_users ?? 0}</p></div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">Active</p><p className="text-2xl font-bold text-emerald-700">{overview?.summary.active_users ?? 0}</p></div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">Inactive</p><p className="text-2xl font-bold text-slate-700">{overview?.summary.inactive_users ?? 0}</p></div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">Pending Invites</p><p className="text-2xl font-bold text-amber-700">{overview?.summary.pending_invitations ?? 0}</p></div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">Admin Users</p><p className="text-2xl font-bold text-cyan-700">{overview?.summary.admin_users ?? 0}</p></div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">Role Templates</p><p className="text-2xl font-bold text-slate-900">{overview?.summary.role_templates ?? 0}</p></div>
+        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">{L('???', 'Users')}</p><p className="text-2xl font-bold text-slate-900">{overview?.summary.total_users ?? 0}</p></div>
+        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">{L('???', 'Active')}</p><p className="text-2xl font-bold text-emerald-700">{overview?.summary.active_users ?? 0}</p></div>
+        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">{L('???', 'Inactive')}</p><p className="text-2xl font-bold text-slate-700">{overview?.summary.inactive_users ?? 0}</p></div>
+        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">{L('?????', 'Pending Invites')}</p><p className="text-2xl font-bold text-amber-700">{overview?.summary.pending_invitations ?? 0}</p></div>
+        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">{L('?????', 'Admin Users')}</p><p className="text-2xl font-bold text-cyan-700">{overview?.summary.admin_users ?? 0}</p></div>
+        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">{L('????', 'Role Templates')}</p><p className="text-2xl font-bold text-slate-900">{overview?.summary.role_templates ?? 0}</p></div>
       </section>
 
       <form onSubmit={onApplyFilters} className="glass rounded-3xl border border-slate-200/60 p-4">
@@ -345,25 +350,25 @@ const AccessManagementPage = () => {
           <input
             value={filters.q}
             onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value }))}
-            placeholder="search by email/name/role"
+            placeholder={L('???????????', 'search by email/name/role')}
             className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
           />
           <select value={filters.role} onChange={(e) => setFilters((prev) => ({ ...prev, role: e.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
             {roleOptions.map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
           <select value={filters.status} onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-            <option value="ALL">ALL STATUS</option>
+            <option value="ALL">{L('????', 'ALL STATUS')}</option>
             <option value="ACTIVE">ACTIVE</option>
             <option value="INACTIVE">INACTIVE</option>
           </select>
-          <button type="submit" className="rounded-xl bg-cyan-600 text-white px-4 py-2 text-sm font-semibold">Apply Filters</button>
+          <button type="submit" className="rounded-xl bg-cyan-600 text-white px-4 py-2 text-sm font-semibold">{L('????', 'Apply Filters')}</button>
         </div>
       </form>
 
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <div className="space-y-4">
           <div className="glass rounded-3xl border border-slate-200/60 p-4">
-            <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2"><Users2 size={16} /> Users</h3>
+            <h3 className="text-sm font-semibold text-slate-800 mb-3 flex items-center gap-2"><Users2 size={16} /> {L('???', 'Users')}</h3>
             <div className="space-y-2 max-h-[30rem] overflow-auto">
               {(users?.items ?? []).map((item) => (
                 <button
@@ -381,14 +386,14 @@ const AccessManagementPage = () => {
                     </span>
                   </div>
                   <p className="text-xs text-slate-500 mt-1">{item.email}</p>
-                  <p className="text-xs text-slate-500">highest {item.highest_role ?? '-'}</p>
+                  <p className="text-xs text-slate-500">{L('????', 'highest')} {item.highest_role ?? '-'}</p>
                 </button>
               ))}
             </div>
           </div>
 
           <form onSubmit={onInvite} className="glass rounded-3xl border border-slate-200/60 p-4 space-y-2">
-            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2"><UserPlus size={16} /> Invite User</h3>
+            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2"><UserPlus size={16} /> {L('????', 'Invite User')}</h3>
             <input value={inviteForm.email} onChange={(e) => setInviteForm((prev) => ({ ...prev, email: e.target.value }))} placeholder="user@example.com" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
             <div className="grid grid-cols-2 gap-2">
               <select value={inviteForm.tenant_role} onChange={(e) => setInviteForm((prev) => ({ ...prev, tenant_role: e.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
@@ -403,13 +408,13 @@ const AccessManagementPage = () => {
               </select>
             </div>
             <input type="number" min={1} value={inviteForm.expires_in_hours} onChange={(e) => setInviteForm((prev) => ({ ...prev, expires_in_hours: Number(e.target.value || 1) }))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
-            <button type="submit" disabled={operating} className="w-full rounded-xl bg-cyan-600 text-white px-3 py-2 text-sm font-semibold disabled:opacity-60">Send Invite</button>
+            <button type="submit" disabled={operating} className="w-full rounded-xl bg-cyan-600 text-white px-3 py-2 text-sm font-semibold disabled:opacity-60">{L('????', 'Send Invite')}</button>
           </form>
         </div>
 
         <div className="xl:col-span-2 space-y-4">
           {!selectedUser ? (
-            <div className="glass rounded-3xl border border-slate-200/60 p-8 text-sm text-slate-500">Select one user to view details.</div>
+            <div className="glass rounded-3xl border border-slate-200/60 p-8 text-sm text-slate-500">{L('???????????', 'Select one user to view details.')}</div>
           ) : (
             <>
               <div className="glass rounded-3xl border border-slate-200/60 p-4 space-y-3">
@@ -419,37 +424,37 @@ const AccessManagementPage = () => {
                     <p className="text-sm text-slate-500">{selectedUser.email} | {selectedUser.auth_provider}</p>
                   </div>
                   <button onClick={() => void onToggleStatus()} disabled={operating} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60">
-                    Set {selectedUser.status === 'ACTIVE' ? 'Inactive' : 'Active'}
+                    {L('??', 'Set')} {selectedUser.status === 'ACTIVE' ? L('???', 'Inactive') : L('???', 'Active')}
                   </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                    <p className="text-xs text-slate-500 mb-1">Tenant Roles</p>
+                    <p className="text-xs text-slate-500 mb-1">{L('????', 'Tenant Roles')}</p>
                     <div className="space-y-1">
                       {selectedUser.tenant_roles.map((item) => (
                         <div key={`${item.tenant_id}-${item.role}`} className="text-xs text-slate-700">{item.tenant_id} | {item.role}</div>
                       ))}
-                      {selectedUser.tenant_roles.length === 0 && <p className="text-xs text-slate-500">No tenant role</p>}
+                      {selectedUser.tenant_roles.length === 0 && <p className="text-xs text-slate-500">{L('??????', 'No tenant role')}</p>}
                     </div>
                   </div>
                   <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                    <p className="text-xs text-slate-500 mb-1">Project Roles</p>
+                    <p className="text-xs text-slate-500 mb-1">{L('????', 'Project Roles')}</p>
                     <div className="space-y-1">
                       {selectedUser.project_roles.map((item) => (
                         <div key={`${item.project_id}-${item.role}`} className="text-xs text-slate-700">{item.project_name} ({item.project_id}) | {item.role}</div>
                       ))}
-                      {selectedUser.project_roles.length === 0 && <p className="text-xs text-slate-500">No project role</p>}
+                      {selectedUser.project_roles.length === 0 && <p className="text-xs text-slate-500">{L('??????', 'No project role')}</p>}
                     </div>
                   </div>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-3 space-y-2">
-                  <p className="text-xs text-slate-500">Role Binding Update (current project)</p>
+                  <p className="text-xs text-slate-500">{L('????????????', 'Role Binding Update (current project)')}</p>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     <select value={roleForm.tenant_role_action} onChange={(e) => setRoleForm((prev) => ({ ...prev, tenant_role_action: e.target.value }))} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                      <option value="UPSERT">Tenant UPSERT</option>
-                      <option value="REMOVE">Tenant REMOVE</option>
+                      <option value="UPSERT">{L('??????', 'Tenant UPSERT')}</option>
+                      <option value="REMOVE">{L('??????', 'Tenant REMOVE')}</option>
                     </select>
                     <select value={roleForm.tenant_role} onChange={(e) => setRoleForm((prev) => ({ ...prev, tenant_role: e.target.value }))} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">
                       <option value="MEMBER">MEMBER</option>
@@ -457,8 +462,8 @@ const AccessManagementPage = () => {
                       <option value="OWNER">OWNER</option>
                     </select>
                     <select value={roleForm.project_role_action} onChange={(e) => setRoleForm((prev) => ({ ...prev, project_role_action: e.target.value }))} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">
-                      <option value="UPSERT">Project UPSERT</option>
-                      <option value="REMOVE">Project REMOVE</option>
+                      <option value="UPSERT">{L('??????', 'Project UPSERT')}</option>
+                      <option value="REMOVE">{L('??????', 'Project REMOVE')}</option>
                     </select>
                     <select value={roleForm.project_role} onChange={(e) => setRoleForm((prev) => ({ ...prev, project_role: e.target.value }))} className="rounded-xl border border-slate-200 px-3 py-2 text-sm">
                       <option value="VIEWER">VIEWER</option>
@@ -468,11 +473,11 @@ const AccessManagementPage = () => {
                       <option value="OWNER">OWNER</option>
                     </select>
                   </div>
-                  <button onClick={() => void onUpdateRoles()} disabled={operating} className="rounded-xl bg-cyan-600 text-white px-3 py-2 text-sm font-semibold disabled:opacity-60">Update Roles</button>
+                  <button onClick={() => void onUpdateRoles()} disabled={operating} className="rounded-xl bg-cyan-600 text-white px-3 py-2 text-sm font-semibold disabled:opacity-60">{L('????', 'Update Roles')}</button>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-3">
-                  <p className="text-xs text-slate-500 mb-2">Recent Security Actions</p>
+                  <p className="text-xs text-slate-500 mb-2">{L('??????', 'Recent Security Actions')}</p>
                   <div className="space-y-2 max-h-48 overflow-auto">
                     {detail?.audit_summary.recent_actions.map((item) => (
                       <div key={item.id} className="rounded-lg border border-slate-200 p-2 text-xs text-slate-700">
@@ -480,21 +485,21 @@ const AccessManagementPage = () => {
                         <p>{item.summary || `${item.entity_type}:${item.entity_id}`}</p>
                       </div>
                     ))}
-                    {!detail?.audit_summary.recent_actions.length && <p className="text-xs text-slate-500">No action records</p>}
+                    {!detail?.audit_summary.recent_actions.length && <p className="text-xs text-slate-500">{L('??????', 'No action records')}</p>}
                   </div>
                 </div>
               </div>
 
               <div className="glass rounded-3xl border border-slate-200/60 p-4 space-y-3">
-                <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2"><ShieldCheck size={16} /> Access Evaluate</h3>
+                <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2"><ShieldCheck size={16} /> {L('????', 'Access Evaluate')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                   <input value={evaluateForm.module} onChange={(e) => setEvaluateForm((prev) => ({ ...prev, module: e.target.value.toUpperCase() }))} className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
                   <input value={evaluateForm.action} onChange={(e) => setEvaluateForm((prev) => ({ ...prev, action: e.target.value.toUpperCase() }))} className="rounded-xl border border-slate-200 px-3 py-2 text-sm" />
-                  <button onClick={() => void onEvaluate()} disabled={operating} className="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm font-semibold disabled:opacity-60">Evaluate</button>
+                  <button onClick={() => void onEvaluate()} disabled={operating} className="rounded-xl bg-slate-900 text-white px-3 py-2 text-sm font-semibold disabled:opacity-60">{L('??', 'Evaluate')}</button>
                 </div>
                 {evaluateResult && (
                   <div className={clsx('rounded-xl border px-3 py-2 text-sm', evaluateResult.allow ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-rose-200 bg-rose-50 text-rose-700')}>
-                    {evaluateResult.allow ? 'ALLOW' : 'DENY'} | {evaluateResult.effective_role ?? '-'} | {evaluateResult.reason}
+                    {evaluateResult.allow ? L('??', 'ALLOW') : L('??', 'DENY')} | {evaluateResult.effective_role ?? '-'} | {evaluateResult.reason}
                   </div>
                 )}
               </div>
@@ -502,7 +507,7 @@ const AccessManagementPage = () => {
           )}
 
           <div className="glass rounded-3xl border border-slate-200/60 p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2"><KeyRound size={16} /> Role Templates</h3>
+            <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2"><KeyRound size={16} /> {L('????', 'Role Templates')}</h3>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
               <div className="space-y-2 max-h-72 overflow-auto">
                 {templates.map((item) => (
@@ -524,16 +529,16 @@ const AccessManagementPage = () => {
               </div>
 
               <div className="lg:col-span-2 rounded-2xl border border-slate-200 bg-white p-3 space-y-2">
-                <input value={templateForm.name} onChange={(e) => setTemplateForm((prev) => ({ ...prev, name: e.target.value }))} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="template name" />
-                <input value={templateForm.description} onChange={(e) => setTemplateForm((prev) => ({ ...prev, description: e.target.value }))} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder="description" />
+                <input value={templateForm.name} onChange={(e) => setTemplateForm((prev) => ({ ...prev, name: e.target.value }))} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder={L('????', 'template name')} />
+                <input value={templateForm.description} onChange={(e) => setTemplateForm((prev) => ({ ...prev, description: e.target.value }))} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm" placeholder={L('??', 'description')} />
                 <label className="text-xs text-slate-500 inline-flex items-center gap-2">
                   <input type="checkbox" checked={templateForm.is_active} onChange={(e) => setTemplateForm((prev) => ({ ...prev, is_active: e.target.checked }))} />
-                  Active
+                  {L('???', 'Active')}
                 </label>
                 <textarea value={templateForm.matrixJson} onChange={(e) => setTemplateForm((prev) => ({ ...prev, matrixJson: e.target.value }))} rows={9} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs font-mono" />
                 <div className="flex gap-2">
-                  <button onClick={() => void onSaveTemplate()} disabled={operating || !selectedTemplateKey} className="rounded-xl bg-cyan-600 text-white px-3 py-2 text-sm font-semibold disabled:opacity-60">Save Template</button>
-                  <button onClick={() => void onDeleteTemplate()} disabled={operating || !selectedTemplate || selectedTemplate.is_system} className="rounded-xl bg-rose-600 text-white px-3 py-2 text-sm font-semibold disabled:opacity-60">Delete Custom</button>
+                  <button onClick={() => void onSaveTemplate()} disabled={operating || !selectedTemplateKey} className="rounded-xl bg-cyan-600 text-white px-3 py-2 text-sm font-semibold disabled:opacity-60">{L('????', 'Save Template')}</button>
+                  <button onClick={() => void onDeleteTemplate()} disabled={operating || !selectedTemplate || selectedTemplate.is_system} className="rounded-xl bg-rose-600 text-white px-3 py-2 text-sm font-semibold disabled:opacity-60">{L('???????', 'Delete Custom')}</button>
                 </div>
               </div>
             </div>

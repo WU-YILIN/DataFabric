@@ -11,6 +11,8 @@ import {
   type SandboxOptionsResponse,
   type SandboxOverviewResponse,
 } from '../services/api'
+import { useBrowserErrorAlert } from '../hooks/useBrowserErrorAlert'
+import { useLanguage } from '../i18n/language'
 
 type Filters = {
   q: string
@@ -35,6 +37,9 @@ const typeToSourceType: Record<SandboxExperimentType, string> = {
 }
 
 const SandboxExperimentation = () => {
+  const { locale } = useLanguage()
+  const isZh = locale === 'zh-CN'
+  const L = (cn: string, en: string) => (isZh ? cn : en)
   const [overview, setOverview] = useState<SandboxOverviewResponse | null>(null)
   const [options, setOptions] = useState<SandboxOptionsResponse | null>(null)
   const [listResp, setListResp] = useState<SandboxExperimentListResponse | null>(null)
@@ -43,6 +48,7 @@ const SandboxExperimentation = () => {
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  useBrowserErrorAlert(error)
 
   const [filters, setFilters] = useState<Filters>({ q: '', status: 'ALL', experiment_type: 'ALL' })
 
@@ -73,7 +79,7 @@ const SandboxExperimentation = () => {
     try {
       return { ok: true, data: JSON.parse(text) }
     } catch {
-      return { ok: false, error: 'JSON 格式错误' }
+      return { ok: false, error: 'JSON 式' }
     }
   }
 
@@ -120,7 +126,7 @@ const SandboxExperimentation = () => {
         await loadDetail(selectedId)
       }
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? 'Failed to load sandbox data')
+      setError(e?.response?.data?.message ?? L('????????', 'Failed to load sandbox data'))
     } finally {
       setLoading(false)
     }
@@ -130,7 +136,7 @@ const SandboxExperimentation = () => {
     setLoading(true)
     Promise.all([loadOverview(), loadOptions(createForm.experiment_type), loadList()])
       .catch((e: any) => {
-        setError(e?.response?.data?.message ?? 'Failed to load sandbox data')
+        setError(e?.response?.data?.message ?? L('????????', 'Failed to load sandbox data'))
       })
       .finally(() => setLoading(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -158,11 +164,11 @@ const SandboxExperimentation = () => {
 
     const parsedConfig = safeParseJson(createForm.config_json)
     if (!parsedConfig.ok) {
-      setError(`创建实验失败: ${parsedConfig.error}`)
+      setError(`实失: ${parsedConfig.error}`)
       return
     }
     if (!createForm.source_id) {
-      setError('创建实验失败: 请先选择 source')
+      setError('实失: 选 source')
       return
     }
 
@@ -180,7 +186,7 @@ const SandboxExperimentation = () => {
       setSelectedId(created.id)
       await loadDetail(created.id)
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? '创建实验失败')
+      setError(e?.response?.data?.message ?? '实失')
     } finally {
       setLoading(false)
     }
@@ -192,7 +198,7 @@ const SandboxExperimentation = () => {
 
     const parsedCandidates = safeParseJson(runForm.candidate_json)
     if (!parsedCandidates.ok || !Array.isArray(parsedCandidates.data)) {
-      setError('运行实验失败: candidate_json 必须是数组 JSON')
+      setError('实失: candidate_json  JSON')
       return
     }
 
@@ -206,7 +212,7 @@ const SandboxExperimentation = () => {
       })
       await Promise.all([loadOverview(), loadList(), loadDetail(selectedId)])
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? '运行实验失败')
+      setError(e?.response?.data?.message ?? '实失')
     } finally {
       setLoading(false)
     }
@@ -223,7 +229,7 @@ const SandboxExperimentation = () => {
       })
       await Promise.all([loadOverview(), loadList(), loadDetail(selectedId)])
     } catch (e: any) {
-      setError(e?.response?.data?.message ?? '推广失败')
+      setError(e?.response?.data?.message ?? '乒失')
     } finally {
       setLoading(false)
     }
@@ -235,8 +241,8 @@ const SandboxExperimentation = () => {
     <div className="max-w-7xl mx-auto space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Sandbox & Experimentation</h2>
-          <p className="text-slate-500 text-base">Create experiments, run candidates, compare metrics, then promote to production.</p>
+          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{L('?????', 'Sandbox & Experimentation')}</h2>
+          <p className="text-slate-500 text-base">{L('????????????????????????????', 'Create experiments, run candidates, compare metrics, then promote to production.')}</p>
         </div>
         <button
           onClick={() => void refreshAll()}
@@ -244,39 +250,37 @@ const SandboxExperimentation = () => {
           className="rounded-xl bg-slate-900 text-white px-4 py-2.5 font-medium hover:bg-slate-800 disabled:opacity-60 flex items-center gap-2"
         >
           <RefreshCw size={16} />
-          Refresh
+          {L('??', 'Refresh')}
         </button>
       </header>
 
-      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</div>}
-
       <section className="grid grid-cols-2 md:grid-cols-6 gap-3">
-        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">Total</p><p className="text-2xl font-bold text-slate-900">{overview?.summary.total_experiments ?? 0}</p></div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">Draft</p><p className="text-2xl font-bold text-slate-900">{overview?.summary.draft_count ?? 0}</p></div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">Running</p><p className="text-2xl font-bold text-slate-900">{overview?.summary.running_count ?? 0}</p></div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">Completed</p><p className="text-2xl font-bold text-slate-900">{overview?.summary.completed_count ?? 0}</p></div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">Promoted</p><p className="text-2xl font-bold text-slate-900">{overview?.summary.promoted_count ?? 0}</p></div>
-        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">Runs (7d)</p><p className="text-2xl font-bold text-slate-900">{overview?.summary.runs_7d ?? 0}</p></div>
+        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">{L('??', 'Total')}</p><p className="text-2xl font-bold text-slate-900">{overview?.summary.total_experiments ?? 0}</p></div>
+        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">{L('??', 'Draft')}</p><p className="text-2xl font-bold text-slate-900">{overview?.summary.draft_count ?? 0}</p></div>
+        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">{L('???', 'Running')}</p><p className="text-2xl font-bold text-slate-900">{overview?.summary.running_count ?? 0}</p></div>
+        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">{L('???', 'Completed')}</p><p className="text-2xl font-bold text-slate-900">{overview?.summary.completed_count ?? 0}</p></div>
+        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">{L('???', 'Promoted')}</p><p className="text-2xl font-bold text-slate-900">{overview?.summary.promoted_count ?? 0}</p></div>
+        <div className="glass rounded-2xl border border-slate-200/60 p-3"><p className="text-xs text-slate-500">{L('? 7 ???', 'Runs (7d)')}</p><p className="text-2xl font-bold text-slate-900">{overview?.summary.runs_7d ?? 0}</p></div>
       </section>
 
       <form onSubmit={onApplyFilters} className="glass rounded-3xl border border-slate-200/60 p-4">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          <input value={filters.q} onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value }))} placeholder="search title/source id" className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
+          <input value={filters.q} onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value }))} placeholder={L('??????? ID', 'search title/source id')} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
           <select value={filters.status} onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-            <option value="ALL">ALL STATUS</option>
+            <option value="ALL">{L('????', 'ALL STATUS')}</option>
             {(listResp?.facets.statuses ?? []).map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
           <select value={filters.experiment_type} onChange={(e) => setFilters((prev) => ({ ...prev, experiment_type: e.target.value }))} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-            <option value="ALL">ALL TYPES</option>
+            <option value="ALL">{L('????', 'ALL TYPES')}</option>
             {(options?.experiment_types ?? []).map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
-          <button type="submit" className="rounded-xl bg-cyan-600 text-white px-4 py-2 text-sm font-semibold">Apply Filters</button>
+          <button type="submit" className="rounded-xl bg-cyan-600 text-white px-4 py-2 text-sm font-semibold">{L('????', 'Apply Filters')}</button>
         </div>
       </form>
 
       <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
         <div className="glass rounded-3xl border border-slate-200/60 p-4 xl:col-span-1 space-y-3">
-          <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2"><Beaker size={16} /> Create Experiment</h3>
+          <h3 className="text-sm font-semibold text-slate-800 flex items-center gap-2"><Beaker size={16} /> {L('????', 'Create Experiment')}</h3>
           <form onSubmit={onCreate} className="space-y-2">
             <select
               value={createForm.experiment_type}
@@ -290,22 +294,22 @@ const SandboxExperimentation = () => {
             >
               {(options?.experiment_types ?? []).map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
-            <input value={createForm.title} onChange={(e) => setCreateForm((prev) => ({ ...prev, title: e.target.value }))} placeholder="experiment title" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" required />
-            <input value={createForm.description} onChange={(e) => setCreateForm((prev) => ({ ...prev, description: e.target.value }))} placeholder="description" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
+            <input value={createForm.title} onChange={(e) => setCreateForm((prev) => ({ ...prev, title: e.target.value }))} placeholder={L('????', 'experiment title')} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" required />
+            <input value={createForm.description} onChange={(e) => setCreateForm((prev) => ({ ...prev, description: e.target.value }))} placeholder={L('??', 'description')} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm" />
             <select value={createForm.source_type} onChange={(e) => setCreateForm((prev) => ({ ...prev, source_type: e.target.value, source_id: '' }))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
               {(options?.source_types ?? []).map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
             <select value={createForm.source_id} onChange={(e) => setCreateForm((prev) => ({ ...prev, source_id: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-              <option value="">Select source</option>
+              <option value="">{L('??????', 'Select source')}</option>
               {sourceOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
             </select>
             <textarea value={createForm.config_json} onChange={(e) => setCreateForm((prev) => ({ ...prev, config_json: e.target.value }))} rows={6} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono" />
-            <button type="submit" disabled={loading} className="w-full rounded-xl bg-slate-900 text-white px-4 py-2 text-sm font-semibold disabled:opacity-60">Create</button>
+            <button type="submit" disabled={loading} className="w-full rounded-xl bg-slate-900 text-white px-4 py-2 text-sm font-semibold disabled:opacity-60">{L('??', 'Create')}</button>
           </form>
         </div>
 
         <div className="glass rounded-3xl border border-slate-200/60 p-4 xl:col-span-2">
-          <h3 className="text-sm font-semibold text-slate-800 mb-3">Experiments</h3>
+          <h3 className="text-sm font-semibold text-slate-800 mb-3">{L('????', 'Experiments')}</h3>
           <div className="space-y-2 max-h-80 overflow-auto">
             {(listResp?.items ?? []).map((item) => (
               <button
@@ -328,22 +332,22 @@ const SandboxExperimentation = () => {
           {selectedExperiment && (
             <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <h4 className="text-sm font-semibold text-slate-800 mb-2">Selected</h4>
+                <h4 className="text-sm font-semibold text-slate-800 mb-2">{L('????', 'Selected')}</h4>
                 <p className="text-sm text-slate-700">{selectedExperiment.title}</p>
                 <p className="text-xs text-slate-500 mt-1">{selectedExperiment.experiment_type} | {selectedExperiment.status}</p>
                 <p className="text-xs text-slate-500">{selectedExperiment.source_type}:{selectedExperiment.source_id}</p>
-                <p className="text-xs text-slate-500">updated {new Date(selectedExperiment.updated_at).toLocaleString()}</p>
+                <p className="text-xs text-slate-500">{L('????', 'updated')} {new Date(selectedExperiment.updated_at).toLocaleString()}</p>
               </div>
 
               <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
-                <h4 className="text-sm font-semibold text-slate-800">Run / Promote</h4>
-                <input value={runForm.sample_size} onChange={(e) => setRunForm((prev) => ({ ...prev, sample_size: e.target.value }))} placeholder="sample_size" className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
-                <input value={runForm.traffic_ratio} onChange={(e) => setRunForm((prev) => ({ ...prev, traffic_ratio: e.target.value }))} placeholder="traffic_ratio" className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
-                <input value={runForm.notes} onChange={(e) => setRunForm((prev) => ({ ...prev, notes: e.target.value }))} placeholder="notes" className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
+                <h4 className="text-sm font-semibold text-slate-800">{L('?? / ??', 'Run / Promote')}</h4>
+                <input value={runForm.sample_size} onChange={(e) => setRunForm((prev) => ({ ...prev, sample_size: e.target.value }))} placeholder={L('???', 'sample_size')} className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
+                <input value={runForm.traffic_ratio} onChange={(e) => setRunForm((prev) => ({ ...prev, traffic_ratio: e.target.value }))} placeholder={L('????', 'traffic_ratio')} className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
+                <input value={runForm.notes} onChange={(e) => setRunForm((prev) => ({ ...prev, notes: e.target.value }))} placeholder={L('??', 'notes')} className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
                 <textarea value={runForm.candidate_json} onChange={(e) => setRunForm((prev) => ({ ...prev, candidate_json: e.target.value }))} rows={6} className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-mono" />
                 <div className="flex gap-2">
-                  <button onClick={() => void onRun()} disabled={loading} className="flex-1 rounded-lg bg-cyan-600 text-white px-3 py-2 text-sm font-semibold disabled:opacity-60 inline-flex items-center justify-center gap-1"><Play size={14} /> Run</button>
-                  <button onClick={() => void onPromote()} disabled={loading} className="flex-1 rounded-lg bg-emerald-600 text-white px-3 py-2 text-sm font-semibold disabled:opacity-60 inline-flex items-center justify-center gap-1"><Rocket size={14} /> Promote</button>
+                  <button onClick={() => void onRun()} disabled={loading} className="flex-1 rounded-lg bg-cyan-600 text-white px-3 py-2 text-sm font-semibold disabled:opacity-60 inline-flex items-center justify-center gap-1"><Play size={14} /> {L('??', 'Run')}</button>
+                  <button onClick={() => void onPromote()} disabled={loading} className="flex-1 rounded-lg bg-emerald-600 text-white px-3 py-2 text-sm font-semibold disabled:opacity-60 inline-flex items-center justify-center gap-1"><Rocket size={14} /> {L('??', 'Promote')}</button>
                 </div>
               </div>
             </div>
@@ -352,16 +356,16 @@ const SandboxExperimentation = () => {
       </section>
 
       <section className="glass rounded-3xl border border-slate-200/60 p-4">
-        <h3 className="text-sm font-semibold text-slate-800 mb-3">Latest Run Summary</h3>
+        <h3 className="text-sm font-semibold text-slate-800 mb-3">{L('????????', 'Latest Run Summary')}</h3>
         {detail?.latest_run ? (
           <div className="rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700 space-y-1">
-            <p>Run #{detail.latest_run.run_no} | status {detail.latest_run.status}</p>
-            <p>Duration: {detail.latest_run.duration_ms ?? 0} ms</p>
-            <p>Best Candidate: {String(detail.latest_run.recommendation_payload.best_candidate_key ?? '-')}</p>
-            <p>Decision: {String(detail.latest_run.recommendation_payload.decision ?? '-')}</p>
+            <p>{L('??', 'Run')} #{detail.latest_run.run_no} | {L('??', 'status')} {detail.latest_run.status}</p>
+            <p>{L('??', 'Duration')}: {detail.latest_run.duration_ms ?? 0} ms</p>
+            <p>{L('????', 'Best Candidate')}: {String(detail.latest_run.recommendation_payload.best_candidate_key ?? '-')}</p>
+            <p>{L('??', 'Decision')}: {String(detail.latest_run.recommendation_payload.decision ?? '-')}</p>
           </div>
         ) : (
-          <p className="text-sm text-slate-500">No runs yet.</p>
+          <p className="text-sm text-slate-500">{L('???????', 'No runs yet.')}</p>
         )}
       </section>
     </div>

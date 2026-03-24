@@ -29,6 +29,7 @@ class AuditLogExportRequest(BaseModel):
     q: str | None = None
     action: str | None = None
     entity_type: str | None = None
+    trace_id: str | None = None
     user: str | None = None
     status: str | None = None
     date_from: str | None = None
@@ -94,6 +95,14 @@ def _extract_context(log: AuditLog, details: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _extract_trace_id(details: dict[str, Any]) -> str | None:
+    for key in ("trace_id", "traceId", "trace"):
+        value = details.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
 def _extract_changed_fields(details: dict[str, Any]) -> list[str]:
     diff = details.get("diff")
     if not isinstance(diff, dict):
@@ -150,6 +159,7 @@ def _to_list_item(log: AuditLog) -> dict[str, Any]:
         "timestamp": log.timestamp.isoformat(),
         "status": _infer_status(log.action),
         "context": context,
+        "trace_id": _extract_trace_id(details),
         "details_summary": _details_summary(details),
         "has_diff": bool(changed_fields),
         "changed_fields": changed_fields,
@@ -178,6 +188,7 @@ def _to_detail_item(log: AuditLog) -> dict[str, Any]:
         "timestamp": log.timestamp.isoformat(),
         "status": _infer_status(log.action),
         "context": context,
+        "trace_id": _extract_trace_id(details),
         "details_summary": _details_summary(details),
         "operation": {
             "key_fields": key_fields,
@@ -195,6 +206,7 @@ async def _load_filtered_rows(
     q: str | None,
     action: str | None,
     entity_type: str | None,
+    trace_id: str | None,
     user: str | None,
     status_filter: str | None,
     date_from: str | None,
@@ -210,6 +222,9 @@ async def _load_filtered_rows(
         query = query.where(AuditLog.action == action.strip())
     if entity_type:
         query = query.where(AuditLog.entity_type == entity_type.strip())
+    if trace_id:
+        trace_like = f'%{trace_id.strip()}%'
+        query = query.where(AuditLog.details.ilike(trace_like))
     if user:
         user_like = f"%{user.strip()}%"
         query = query.where(AuditLog.user_id.ilike(user_like))
@@ -247,6 +262,7 @@ async def list_audit_logs(
     q: str | None = Query(default=None),
     action: str | None = Query(default=None),
     entity_type: str | None = Query(default=None),
+    trace_id: str | None = Query(default=None),
     user: str | None = Query(default=None),
     status_filter: str | None = Query(default=None, alias="status"),
     date_from: str | None = Query(default=None),
@@ -263,6 +279,7 @@ async def list_audit_logs(
         q=q,
         action=action,
         entity_type=entity_type,
+        trace_id=trace_id,
         user=user,
         status_filter=status_filter,
         date_from=date_from,
@@ -280,6 +297,14 @@ async def list_audit_logs(
         "actions": sorted({row.action for row in rows}),
         "entity_types": sorted({row.entity_type for row in rows}),
         "users": sorted({parse_actor(row.user_id) for row in rows if row.user_id}),
+        "trace_ids": sorted(
+            {
+                trace
+                for row in rows
+                for trace in [_extract_trace_id(_parse_details(row.details))]
+                if trace
+            }
+        ),
     }
     return success_response(
         {
@@ -325,6 +350,7 @@ async def export_audit_logs(
         q=request.q,
         action=request.action,
         entity_type=request.entity_type,
+        trace_id=request.trace_id,
         user=request.user,
         status_filter=request.status,
         date_from=request.date_from,
@@ -348,6 +374,7 @@ async def export_audit_logs(
                 "action",
                 "entity_type",
                 "entity_id",
+                "trace_id",
                 "status",
                 "project_id",
                 "tenant_id",
@@ -369,6 +396,7 @@ async def export_audit_logs(
                     detail["action"],
                     detail["entity_type"],
                     detail["entity_id"],
+                    detail["trace_id"],
                     detail["status"],
                     context_data.get("project_id"),
                     context_data.get("tenant_id"),
@@ -388,6 +416,7 @@ async def export_audit_logs(
             "row_count": len(rows),
             "action_filter": request.action,
             "entity_type_filter": request.entity_type,
+            "trace_id_filter": request.trace_id,
             "status_filter": request.status,
         },
         ensure_ascii=True,

@@ -21,6 +21,7 @@ from src.infrastructure.database.models.ingestion_event_log import IngestionEven
 from src.infrastructure.database.models.project import Project
 from src.infrastructure.database.repositories.base import BaseRepository
 from src.infrastructure.database.session import get_async_session
+from src.infrastructure.ingester import client as ingester_client
 
 router = APIRouter()
 
@@ -639,6 +640,10 @@ async def create_ingestion_channel(
         },
     )
 
+    # Immediately register the new key with the Go ingestion gateway so it
+    # can be used within milliseconds (fallback: gateway Redis sync every 30 s).
+    await ingester_client.register_key(ingest_key)
+
     return success_response(
         {
             "channel": _channel_to_row(channel, include_secret=True),
@@ -762,6 +767,9 @@ async def rotate_ingestion_key(
             "reason": request.reason,
         },
     )
+
+    # Atomically swap keys in the gateway: register new, then revoke old.
+    await ingester_client.rotate_key(old_key=channel.ingest_key, new_key=new_key)
 
     return success_response(
         {

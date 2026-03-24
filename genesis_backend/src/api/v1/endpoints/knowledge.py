@@ -114,6 +114,7 @@ class RelatedObjectInput(BaseModel):
 class KnowledgeCreateRequest(BaseModel):
     doc_type: str = Field(..., min_length=2, max_length=64)
     module: str = Field(..., min_length=2, max_length=64)
+    knowledge_level: str = Field(default="BRIEF", max_length=32)
     title: str = Field(..., min_length=2, max_length=255)
     summary: str | None = Field(default=None, max_length=2000)
     content: str | None = Field(default=None, max_length=100000)
@@ -121,6 +122,8 @@ class KnowledgeCreateRequest(BaseModel):
     status: str = Field(default="DRAFT", max_length=32)
     tags: list[str] = Field(default_factory=list)
     related_objects: list[RelatedObjectInput] = Field(default_factory=list)
+    object_refs: list[dict[str, Any]] = Field(default_factory=list)
+    fact_refs: list[dict[str, Any]] = Field(default_factory=list)
     meta_payload: dict[str, Any] = Field(default_factory=dict)
     template_key: str | None = Field(default=None, max_length=64)
     change_note: str | None = Field(default=None, max_length=1000)
@@ -129,12 +132,15 @@ class KnowledgeCreateRequest(BaseModel):
 class KnowledgeUpdateRequest(BaseModel):
     doc_type: str | None = Field(default=None, min_length=2, max_length=64)
     module: str | None = Field(default=None, min_length=2, max_length=64)
+    knowledge_level: str | None = Field(default=None, max_length=32)
     title: str | None = Field(default=None, min_length=2, max_length=255)
     summary: str | None = Field(default=None, max_length=2000)
     content: str | None = Field(default=None, max_length=100000)
     format: str | None = Field(default=None, max_length=32)
     tags: list[str] | None = None
     related_objects: list[RelatedObjectInput] | None = None
+    object_refs: list[dict[str, Any]] | None = None
+    fact_refs: list[dict[str, Any]] | None = None
     meta_payload: dict[str, Any] | None = None
     change_note: str | None = Field(default=None, max_length=1000)
 
@@ -262,6 +268,37 @@ def _related_object_exists_model(source_type: str):
     return None
 
 
+def _is_shared_memory_doc(document: KnowledgeDocument) -> bool:
+    return "shared-memory" in (document.tags or [])
+
+
+def _document_accessible(
+    document: KnowledgeDocument | None,
+    *,
+    project_id: int,
+    tenant_id: int | None,
+) -> bool:
+    if document is None:
+        return False
+    if document.project_id == project_id:
+        return True
+    return tenant_id is not None and document.tenant_id == tenant_id and _is_shared_memory_doc(document)
+
+
+async def _load_accessible_document(
+    db: AsyncSession,
+    *,
+    document_id: int,
+    project_id: int,
+    tenant_id: int | None,
+) -> KnowledgeDocument | None:
+    result = await db.execute(select(KnowledgeDocument).where(KnowledgeDocument.id == document_id))
+    document = result.scalar_one_or_none()
+    if not _document_accessible(document, project_id=project_id, tenant_id=tenant_id):
+        return None
+    return document
+
+
 async def _enrich_related_objects(
     db: AsyncSession,
     project_id: int,
@@ -292,12 +329,14 @@ def _document_to_row(document: KnowledgeDocument, related_objects: list[dict[str
     preview = document.content.strip()
     if len(preview) > 280:
         preview = f"{preview[:280]}..."
+    fact_refs = document.fact_refs or []
     return {
         "id": document.id,
         "project_id": document.project_id,
         "tenant_id": document.tenant_id,
         "doc_type": document.doc_type,
         "module": document.module,
+        "knowledge_level": document.knowledge_level,
         "title": document.title,
         "summary": document.summary,
         "content": document.content,
@@ -306,6 +345,10 @@ def _document_to_row(document: KnowledgeDocument, related_objects: list[dict[str
         "status": document.status,
         "tags": document.tags or [],
         "related_objects": related_objects if related_objects is not None else (document.related_objects or []),
+        "object_refs": document.object_refs or [],
+        "fact_refs": fact_refs,
+        "fact_ref_count": len(fact_refs),
+        "has_fact_refs": len(fact_refs) > 0,
         "author": parse_actor(document.author_id),
         "author_id": document.author_id,
         "author_user_id": document.author_user_id,
@@ -574,28 +617,45 @@ async def get_knowledge_templates(
     return success_response(rows)
 
 
+@router.get("/nodes")
 @router.get("/documents")
 async def list_knowledge_documents(
     q: str | None = Query(default=None),
     module: str | None = Query(default=None),
     doc_type: str | None = Query(default=None),
+    knowledge_level: str | None = Query(default=None),
     status_filter: str | None = Query(default=None, alias="status"),
     tag: str | None = Query(default=None),
     updated_by_me: bool = Query(default=False),
     related_source_type: str | None = Query(default=None),
     related_source_id: str | None = Query(default=None),
+    include_shared: bool = Query(default=False),
+    shared_only: bool = Query(default=False),
     limit: int = Query(default=100, ge=1, le=300),
     offset: int = Query(default=0, ge=0),
     context: RequestContext = Depends(get_request_context),
     db: AsyncSession = Depends(get_async_session),
 ):
     _require_user_context(context)
-    query = select(KnowledgeDocument).where(KnowledgeDocument.project_id == context.project.id)
+    query = select(KnowledgeDocument)
     filters = []
+    if shared_only:
+        query = query.where(KnowledgeDocument.tenant_id == context.project.tenant_id)
+    elif include_shared:
+        query = query.where(
+            or_(
+                KnowledgeDocument.project_id == context.project.id,
+                KnowledgeDocument.tenant_id == context.project.tenant_id,
+            )
+        )
+    else:
+        query = query.where(KnowledgeDocument.project_id == context.project.id)
     if module:
         filters.append(KnowledgeDocument.module == _normalize_text_token(module, "module"))
     if doc_type:
         filters.append(KnowledgeDocument.doc_type == _normalize_text_token(doc_type, "doc_type"))
+    if knowledge_level:
+        filters.append(KnowledgeDocument.knowledge_level == _normalize_text_token(knowledge_level, "knowledge_level"))
     if status_filter:
         filters.append(KnowledgeDocument.status == _normalize_status(status_filter))
     if q:
@@ -612,6 +672,15 @@ async def list_knowledge_documents(
 
     result = await db.execute(query.order_by(KnowledgeDocument.updated_at.desc()))
     docs = list(result.scalars().all())
+
+    if shared_only:
+        docs = [item for item in docs if _is_shared_memory_doc(item)]
+    elif include_shared:
+        docs = [
+            item
+            for item in docs
+            if item.project_id == context.project.id or _is_shared_memory_doc(item)
+        ]
 
     if updated_by_me:
         docs = [
@@ -640,6 +709,7 @@ async def list_knowledge_documents(
     modules = sorted({item.module for item in docs})
     doc_types = sorted({item.doc_type for item in docs})
     statuses = sorted({item.status for item in docs})
+    levels = sorted({item.knowledge_level for item in docs})
     tags = sorted({tag_item for item in docs for tag_item in (item.tags or [])})
 
     data = {
@@ -650,6 +720,7 @@ async def list_knowledge_documents(
         "facets": {
             "modules": modules,
             "doc_types": doc_types,
+            "knowledge_levels": levels,
             "statuses": statuses,
             "tags": tags,
         },
@@ -699,6 +770,7 @@ async def list_related_documents(
     )
 
 
+@router.post("/nodes")
 @router.post("/documents")
 async def create_knowledge_document(
     request: KnowledgeCreateRequest,
@@ -731,6 +803,7 @@ async def create_knowledge_document(
     format_value = _normalize_format(request.format)
     tags = _normalize_tags(request.tags)
     related_objects = _normalize_related_objects(request.related_objects)
+    knowledge_level = _normalize_text_token(request.knowledge_level, "knowledge_level")
     now = datetime.now(timezone.utc)
 
     document_repo = BaseRepository(KnowledgeDocument, db)
@@ -740,6 +813,7 @@ async def create_knowledge_document(
             "tenant_id": context.project.tenant_id,
             "doc_type": doc_type,
             "module": module,
+            "knowledge_level": knowledge_level,
             "title": title,
             "summary": summary,
             "content": content,
@@ -747,6 +821,8 @@ async def create_knowledge_document(
             "status": status_value,
             "tags": tags,
             "related_objects": related_objects,
+            "object_refs": _json_safe(request.object_refs or []),
+            "fact_refs": _json_safe(request.fact_refs or []),
             "author_id": context.actor_id,
             "author_user_id": context.user.id if context.user else None,
             "last_editor_id": context.actor_id,
@@ -776,6 +852,7 @@ async def create_knowledge_document(
         {
             "doc_type": document.doc_type,
             "module": document.module,
+            "knowledge_level": document.knowledge_level,
             "status": document.status,
             "version_no": document.version_no,
         },
@@ -785,6 +862,7 @@ async def create_knowledge_document(
     return success_response(detail, message="Document created", code="KNOWLEDGE_DOC_CREATED")
 
 
+@router.get("/nodes/{document_id}")
 @router.get("/documents/{document_id}")
 async def get_knowledge_document_detail(
     document_id: int,
@@ -792,19 +870,19 @@ async def get_knowledge_document_detail(
     db: AsyncSession = Depends(get_async_session),
 ):
     _require_user_context(context)
-    result = await db.execute(
-        select(KnowledgeDocument).where(
-            KnowledgeDocument.id == document_id,
-            KnowledgeDocument.project_id == context.project.id,
-        )
+    document = await _load_accessible_document(
+        db,
+        document_id=document_id,
+        project_id=context.project.id,
+        tenant_id=context.project.tenant_id,
     )
-    document = result.scalar_one_or_none()
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
     detail = await _load_document_detail(db, document)
     return success_response(detail)
 
 
+@router.patch("/nodes/{document_id}")
 @router.patch("/documents/{document_id}")
 async def update_knowledge_document(
     document_id: int,
@@ -813,13 +891,12 @@ async def update_knowledge_document(
     db: AsyncSession = Depends(get_async_session),
 ):
     _require_user_context(context)
-    result = await db.execute(
-        select(KnowledgeDocument).where(
-            KnowledgeDocument.id == document_id,
-            KnowledgeDocument.project_id == context.project.id,
-        )
+    document = await _load_accessible_document(
+        db,
+        document_id=document_id,
+        project_id=context.project.id,
+        tenant_id=context.project.tenant_id,
     )
-    document = result.scalar_one_or_none()
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
@@ -828,6 +905,8 @@ async def update_knowledge_document(
         patch["doc_type"] = _normalize_text_token(request.doc_type, "doc_type")
     if request.module is not None:
         patch["module"] = _normalize_text_token(request.module, "module")
+    if request.knowledge_level is not None:
+        patch["knowledge_level"] = _normalize_text_token(request.knowledge_level, "knowledge_level")
     if request.title is not None:
         title = request.title.strip()
         if not title:
@@ -846,6 +925,10 @@ async def update_knowledge_document(
         patch["tags"] = _normalize_tags(request.tags)
     if request.related_objects is not None:
         patch["related_objects"] = _normalize_related_objects(request.related_objects)
+    if request.object_refs is not None:
+        patch["object_refs"] = _json_safe(request.object_refs)
+    if request.fact_refs is not None:
+        patch["fact_refs"] = _json_safe(request.fact_refs)
     if request.meta_payload is not None:
         patch["meta_payload"] = request.meta_payload
 
@@ -897,13 +980,12 @@ async def add_knowledge_document_comment(
     db: AsyncSession = Depends(get_async_session),
 ):
     _require_user_context(context)
-    result = await db.execute(
-        select(KnowledgeDocument).where(
-            KnowledgeDocument.id == document_id,
-            KnowledgeDocument.project_id == context.project.id,
-        )
+    document = await _load_accessible_document(
+        db,
+        document_id=document_id,
+        project_id=context.project.id,
+        tenant_id=context.project.tenant_id,
     )
-    document = result.scalar_one_or_none()
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
@@ -951,13 +1033,12 @@ async def operate_knowledge_document(
     if action not in DOC_ACTIONS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Unsupported action: {request.action}")
 
-    result = await db.execute(
-        select(KnowledgeDocument).where(
-            KnowledgeDocument.id == document_id,
-            KnowledgeDocument.project_id == context.project.id,
-        )
+    document = await _load_accessible_document(
+        db,
+        document_id=document_id,
+        project_id=context.project.id,
+        tenant_id=context.project.tenant_id,
     )
-    document = result.scalar_one_or_none()
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
@@ -1010,13 +1091,12 @@ async def restore_knowledge_document_version(
     db: AsyncSession = Depends(get_async_session),
 ):
     _require_user_context(context)
-    doc_result = await db.execute(
-        select(KnowledgeDocument).where(
-            KnowledgeDocument.id == document_id,
-            KnowledgeDocument.project_id == context.project.id,
-        )
+    document = await _load_accessible_document(
+        db,
+        document_id=document_id,
+        project_id=context.project.id,
+        tenant_id=context.project.tenant_id,
     )
-    document = doc_result.scalar_one_or_none()
     if not document:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
 
